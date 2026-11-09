@@ -1279,3 +1279,10 @@ button, a, [role="button"] { touch-action: manipulation; }
 .setup-library-filters{margin:0}
 .setup-library-filters input,.setup-library-filters select{min-width:0;width:100%}
 @media(max-width:560px){.setup-library-panel{padding:12px}.setup-library-tabs{display:grid;grid-template-columns:1fr 1fr}.setup-library-tab{padding:0 8px;font-size:11px}.setup-library-filters{grid-template-columns:1fr 1fr}.setup-library-filters input[type=search]{grid-column:1/-1}}
+
+
+/* Bibliothèque de setups : titre de la zone de recherche et filtres. */
+.setup-filter-heading{display:grid;gap:4px;margin:0 0 -2px}
+.setup-filter-heading h2{margin:0;color:var(--text);font-size:15px;font-weight:850;letter-spacing:-.025em}
+.setup-filter-heading p{margin:0;color:var(--muted);font-size:11px;line-height:1.45}
+@media(max-width:560px){.setup-filter-heading h2{font-size:14px}.setup-filter-heading p{font-size:10px}}
