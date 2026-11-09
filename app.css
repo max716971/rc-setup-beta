@@ -983,3 +983,137 @@ button, a, [role="button"] { touch-action: manipulation; }
 #dashboardView .cockpit-readouts>div:last-child strong[data-status="error"]{color:#ff7777}
 #dashboardView .cockpit-topline b[data-status="error"]{color:#ff7777}
 #dashboardView .cockpit-topline i[data-status="error"]{background:#ff7777;box-shadow:0 0 12px #ff7777}
+
+
+/* BETA INTERFACE V10 — unified modern layout for every workspace tab */
+:root{
+  --beta-line:rgba(166,185,205,.13);
+  --beta-surface:linear-gradient(145deg,rgba(24,38,55,.94),rgba(12,21,33,.98));
+  --beta-glow:rgba(255,145,31,.12);
+}
+.app-shell{width:min(100% - 40px,1120px)}
+.topbar{margin-bottom:18px}
+.nav{
+  gap:6px;padding:6px;border-color:rgba(166,185,205,.14);
+  background:rgba(9,16,26,.84);border-radius:17px;
+  box-shadow:0 12px 32px rgba(0,0,0,.2)
+}
+.nav-item{min-width:0;border-radius:12px;font-size:12px;font-weight:750}
+.nav-item.active{color:#ffad58;background:rgba(255,145,31,.12);box-shadow:inset 0 0 0 1px rgba(255,145,31,.22)}
+.view{gap:18px}
+.view:not(#dashboardView)>.section-heading{
+  position:relative;overflow:hidden;align-items:center;
+  min-height:142px;padding:24px 26px;
+  border:1px solid rgba(255,145,31,.2);border-radius:22px;
+  background:radial-gradient(ellipse at 92% 0%,rgba(255,145,31,.13),transparent 38%),linear-gradient(115deg,#17283a 0%,#101c2b 65%,#0d1724 100%);
+  box-shadow:0 15px 38px rgba(0,0,0,.17)
+}
+.view:not(#dashboardView)>.section-heading:after{
+  content:"";position:absolute;right:-34px;bottom:-96px;width:230px;height:170px;
+  border:1px solid rgba(255,145,31,.14);border-radius:50%;transform:rotate(-18deg);
+  box-shadow:0 0 0 16px rgba(255,145,31,.025),0 0 0 34px rgba(255,145,31,.02);
+  pointer-events:none
+}
+.view:not(#dashboardView)>.section-heading>div,
+.view:not(#dashboardView)>.section-heading>.button,
+.view:not(#dashboardView)>.section-heading>.heading-actions{position:relative;z-index:1}
+.view:not(#dashboardView)>.section-heading .kicker{color:#ffad58;font-size:9px;letter-spacing:.2em}
+.view:not(#dashboardView)>.section-heading h1{margin:8px 0 5px;font-size:clamp(30px,4vw,39px);letter-spacing:-.06em}
+.view:not(#dashboardView)>.section-heading p{margin:0;color:#b3c1d0;font-size:12px;line-height:1.6}
+.view:not(#dashboardView)>.panel,
+.view:not(#dashboardView)>.form-card,
+.view:not(#dashboardView) #materialsApp>.panel{
+  border:1px solid var(--beta-line);border-radius:20px;
+  background:var(--beta-surface);box-shadow:0 14px 34px rgba(0,0,0,.14)
+}
+.view:not(#dashboardView) .panel-header{align-items:center;margin-bottom:17px}
+.view:not(#dashboardView) .panel-header .kicker{color:#ffad58;font-size:9px;letter-spacing:.17em}
+.view:not(#dashboardView) .panel-header h2{font-size:18px;letter-spacing:-.035em}
+.view:not(#dashboardView) .panel-header p{font-size:11px}
+.view:not(#dashboardView) .form-section{padding-bottom:13px;border-bottom:1px solid rgba(166,185,205,.1)}
+.view:not(#dashboardView) .form-section-spaced{padding-top:22px}
+.view:not(#dashboardView) .form-number{border:1px solid rgba(255,145,31,.18);background:rgba(255,145,31,.1)}
+.view:not(#dashboardView) label{gap:8px;color:#c2cedb;font-size:11px;font-weight:700}
+.view:not(#dashboardView) input,
+.view:not(#dashboardView) select,
+.view:not(#dashboardView) textarea{
+  min-height:46px;border-color:rgba(166,185,205,.17);border-radius:12px;
+  background:rgba(5,13,22,.68);font-size:13px
+}
+.view:not(#dashboardView) textarea{min-height:96px}
+.view:not(#dashboardView) input:focus,
+.view:not(#dashboardView) select:focus,
+.view:not(#dashboardView) textarea:focus{
+  border-color:rgba(255,145,31,.65);box-shadow:0 0 0 3px rgba(255,145,31,.1)
+}
+.view:not(#dashboardView) .button{min-height:42px;border-radius:12px;font-weight:800}
+.view:not(#dashboardView) .button-primary{background:linear-gradient(135deg,#ffad58,#ff8617);color:#1b2028;box-shadow:0 7px 20px rgba(255,145,31,.16)}
+.view:not(#dashboardView) .button-primary:hover{background:#ffbd78}
+.view:not(#dashboardView) .button-soft,
+.view:not(#dashboardView) .button-outline{border-color:rgba(166,185,205,.17);background:rgba(255,255,255,.045);color:#dbe4ed}
+.view:not(#dashboardView) .list{gap:10px}
+.view:not(#dashboardView) .list-item,
+.view:not(#dashboardView) .setup-card,
+.view:not(#dashboardView) .entity-card{
+  border-color:rgba(166,185,205,.13);border-radius:16px;
+  background:linear-gradient(120deg,rgba(255,255,255,.035),rgba(255,255,255,.015));
+  transition:border-color .18s,background .18s,transform .18s
+}
+.view:not(#dashboardView) .list-item:hover,
+.view:not(#dashboardView) .setup-card:hover,
+.view:not(#dashboardView) .entity-card:hover{
+  border-color:rgba(255,145,31,.32);background:rgba(255,145,31,.045)
+}
+.view:not(#dashboardView) .item-avatar{border:1px solid rgba(255,145,31,.15);background:rgba(255,145,31,.09)}
+.view:not(#dashboardView) .icon-button{border-radius:11px;background:rgba(255,255,255,.04)}
+.view:not(#dashboardView) .empty-state{border-color:rgba(166,185,205,.2);background:rgba(255,255,255,.015)}
+.view:not(#dashboardView) .tool-result{border:1px solid rgba(255,145,31,.18);border-radius:15px;background:rgba(255,145,31,.055)}
+.view:not(#dashboardView) .help-hero{border:1px solid rgba(255,145,31,.2);border-radius:22px;background:radial-gradient(ellipse at 85% 20%,rgba(255,145,31,.15),transparent 38%),linear-gradient(120deg,#17283a,#0d1724)}
+.view:not(#dashboardView) .help-quick-card,
+.view:not(#dashboardView) .help-setup-card,
+.view:not(#dashboardView) .help-guide-row{border-color:rgba(166,185,205,.14);border-radius:16px;background:rgba(255,255,255,.025)}
+.view:not(#dashboardView) .shock-side{border-radius:16px;background:rgba(255,255,255,.025)}
+.view:not(#dashboardView) .setup-tag{border:1px solid rgba(255,145,31,.15);background:rgba(255,145,31,.1);color:#ffad58}
+.view:not(#dashboardView) .details-dialog{border-color:rgba(255,145,31,.2);background:#101b29}
+#dashboardView .home-hero{
+  display:block;position:relative;min-height:0;padding:clamp(34px,5vw,58px);
+  border:1px solid rgba(255,145,31,.28);border-radius:26px;
+  background:radial-gradient(ellipse at 88% 15%,rgba(255,145,31,.16),transparent 36%),radial-gradient(ellipse at 8% 100%,rgba(45,105,145,.16),transparent 42%),linear-gradient(120deg,#091521,#172b3d 58%,#0c1825);
+}
+#dashboardView .home-hero-copy{max-width:760px}
+#dashboardView .home-hero h1{max-width:720px;font-size:clamp(40px,6.5vw,72px)}
+#dashboardView .home-hero-copy>p{max-width:610px}
+#dashboardView .home-beta-tag{top:16px;right:18px}
+@media(max-width:700px){
+  .app-shell{width:min(100% - 24px,600px);padding-top:max(12px,env(safe-area-inset-top))}
+  .nav{overflow-x:auto;scrollbar-width:none;gap:4px;padding:5px;margin-bottom:16px}
+  .nav::-webkit-scrollbar{display:none}
+  .nav-item{flex:1 0 auto;min-width:42px;padding:4px 6px;font-size:9px}
+  .view{gap:14px}
+  .view:not(#dashboardView)>.section-heading{min-height:0;align-items:flex-start;flex-direction:column;gap:13px;padding:19px 17px;border-radius:18px}
+  .view:not(#dashboardView)>.section-heading h1{font-size:31px}
+  .view:not(#dashboardView)>.section-heading p{font-size:11px}
+  .view:not(#dashboardView)>.section-heading>.button,
+  .view:not(#dashboardView)>.section-heading>.heading-actions{width:100%}
+  .view:not(#dashboardView)>.section-heading>.button{justify-content:center}
+  .view:not(#dashboardView)>.section-heading>.heading-actions{display:grid;grid-template-columns:1fr 1fr}
+  .view:not(#dashboardView)>.panel,
+  .view:not(#dashboardView)>.form-card{padding:15px;border-radius:17px}
+  .view:not(#dashboardView) .panel-header{align-items:flex-start}
+  .view:not(#dashboardView) .panel-header h2{font-size:16px}
+  .view:not(#dashboardView) .form-grid{grid-template-columns:minmax(0,1fr);gap:12px}
+  .view:not(#dashboardView) .form-grid label.full-width{grid-column:auto}
+  .view:not(#dashboardView) .actions-row .button{flex:1 1 135px}
+  .view:not(#dashboardView) .list-item{gap:10px;padding:12px}
+  #dashboardView .home-hero{padding:49px 18px 25px;border-radius:20px}
+  #dashboardView .home-hero h1{font-size:clamp(36px,9.5vw,46px);line-height:1}
+  #dashboardView .home-hero-copy>p{font-size:11px}
+  #dashboardView .home-hero-actions{display:flex;flex-wrap:wrap}
+  #dashboardView .home-hero-actions .button{flex:1 1 135px}
+  #dashboardView .home-beta-tag{top:10px;right:11px;font-size:8px}
+}
+@media(max-width:380px){
+  .nav-item{min-width:39px;padding-inline:4px}
+  .nav-item span{font-size:15px}
+  .view:not(#dashboardView)>.section-heading>.heading-actions{grid-template-columns:1fr}
+}
