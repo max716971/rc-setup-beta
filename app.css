@@ -1267,3 +1267,5 @@ button, a, [role="button"] { touch-action: manipulation; }
 .help-accordion[open]>.help-section-toggle{margin-bottom:14px}
 .help-accordion:not([open]){padding-top:17px;padding-bottom:17px}
 .help-accordion>.help-section-toggle:focus-visible{outline:2px solid var(--accent);outline-offset:4px;border-radius:8px}
+/* Accueil : éviter la césure automatique du mot « supérieure » */
+#dashboardView .home-hero h1 em{hyphens:none;-webkit-hyphens:none}
