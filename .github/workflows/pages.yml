@@ -1,4 +1,5 @@
 name: Deploy RC SETUP to GitHub Pages
+# Retry deployment trigger for the beta site
 
 on:
   push:
