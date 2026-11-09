@@ -1286,3 +1286,12 @@ button, a, [role="button"] { touch-action: manipulation; }
 .setup-filter-heading h2{margin:0;color:var(--text);font-size:15px;font-weight:850;letter-spacing:-.025em}
 .setup-filter-heading p{margin:0;color:var(--muted);font-size:11px;line-height:1.45}
 @media(max-width:560px){.setup-filter-heading h2{font-size:14px}.setup-filter-heading p{font-size:10px}}
+
+
+/* Filtres setups : adhérence à largeur homogène et dates alignées. */
+.setup-library-filters > select,
+.setup-library-filters > input { box-sizing:border-box; width:100%; min-width:0; }
+.setup-date-range { grid-column:span 2; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; min-width:0; }
+.setup-date-range label { min-width:0; }
+.setup-date-range input { box-sizing:border-box; width:100%; min-width:0; }
+@media(max-width:700px){ .setup-date-range { grid-column:1/-1; } }
