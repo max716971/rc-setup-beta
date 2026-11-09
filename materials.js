@@ -1493,7 +1493,7 @@
     if (summary) summary.innerHTML = `<div class="inventory-stat"><span>Références possédées</span><strong>${savedItems.length}</strong></div><div class="inventory-stat"><span>Quantité totale</span><strong>${totalQty}</strong></div>`;
   }
   function render() {
-    const brands = [...new Set([...knownBrands, ...allMaterials().map((item) => item.brand)])].sort((a,b) => a.localeCompare(b,'fr'));
+    const brands = [...new Set([...knownBrands, ...allMaterials().map((item) => item.brand)])].filter((brand) => String(brand).trim().toLocaleLowerCase('fr') !== 'tamiya').sort((a,b) => a.localeCompare(b,'fr'));
     const categories = [...new Set(allMaterials().map((item) => item.category))].sort((a,b) => a.localeCompare(b,'fr'));
     const totalQty = savedItems.reduce((sum,item)=>sum+Math.max(0,Number(item.quantity)||0),0);
     const summaryMarkup = activeTab === 'mine' ? `<div class="inventory-summary"><div class="inventory-stat"><span>Références possédées</span><strong>${savedItems.length}</strong></div><div class="inventory-stat"><span>Quantité totale</span><strong>${totalQty}</strong></div></div>` : '';
