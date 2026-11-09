@@ -5905,7 +5905,7 @@ function renderDashboard() {
   }
   const container = document.getElementById('recentSetups');
   container.replaceChildren();
-  const recent = [...state.setups].sort((a,b)=>new Date(b.createdAt||b.created_at||0)-new Date(a.createdAt||a.created_at||0)).slice(0,4);
+  const recent = [...state.setups].sort((a,b)=>new Date(b.createdAt||b.created_at||0)-new Date(a.createdAt||a.created_at||0)).slice(0,3);
   if (!recent.length) container.append(emptyState());
   recent.forEach(setup => {
     const car=getCarById(setup.carId),track=getTrackById(setup.trackId),item=document.createElement('article');
@@ -6090,7 +6090,7 @@ function renderPerformanceTrend(){
   const selectedTrack=document.getElementById('performanceTrackFilter')?.value||'';
   const tracks=[...new Map(state.setups.filter(s=>s.trackId&&getTrackById(s.trackId)).map(s=>[s.trackId,getTrackById(s.trackId)])).values()].sort((a,b)=>a.name.localeCompare(b.name,'fr'));
   const options='<option value="">Toutes les pistes</option>'+tracks.map(track=>`<option value="${escapeHtml(track.id)}" ${track.id===selectedTrack?'selected':''}>${escapeHtml(track.name)}</option>`).join('');
-  const samples=state.setups.filter(s=>parseLapTime(s.lapTime)!==null&&(!selectedTrack||s.trackId===selectedTrack)).sort((a,b)=>new Date(a.sessionDate||a.createdAt)-new Date(b.sessionDate||b.createdAt)).slice(-10);
+  const samples=state.setups.filter(s=>parseLapTime(s.lapTime)!==null&&(!selectedTrack||s.trackId===selectedTrack)).sort((a,b)=>new Date(a.sessionDate||a.createdAt)-new Date(b.sessionDate||b.createdAt)).slice(-5);
   if(!samples.length){root.innerHTML='<label class="trend-filter-label" for="performanceTrackFilter">Piste<select id="performanceTrackFilter">'+options+'</select></label><p class="item-sub">'+(selectedTrack?'Aucun chrono enregistré sur cette piste.':'Renseigne un meilleur temps dans tes setups pour afficher leur évolution.')+'</p>';return;}
   const values=samples.map(s=>parseLapTime(s.lapTime)),best=Math.min(...values),worst=Math.max(...values);
   root.innerHTML='<label class="trend-filter-label" for="performanceTrackFilter">Piste<select id="performanceTrackFilter">'+options+'</select></label><div class="trend-chart">'+samples.map((s,i)=>{const v=values[i],height=worst===best?75:Math.max(18,Math.round(100-(v-best)/(worst-best)*72));return `<div class="trend-column" title="${escapeHtml(getCarById(s.carId)?.name||'Voiture')} · ${escapeHtml(s.setupName||'Setup sans nom')} · ${escapeHtml(s.lapTime)}"><span>${escapeHtml(s.lapTime)}</span><i style="height:${height}%"></i><small>${escapeHtml((s.sessionDate||s.createdAt||'').slice(0,10))}</small></div>`;}).join('')+'</div><div class="trend-details">'+samples.slice().reverse().map(s=>`<div class="trend-detail-row"><span><strong>${escapeHtml(s.setupName||'Setup sans nom')}</strong><small>${escapeHtml(getTrackById(s.trackId)?.name||'Piste non renseignée')} · ${escapeHtml((s.sessionDate||s.createdAt||'').slice(0,10))}</small></span><strong>${escapeHtml(s.lapTime)}</strong></div>`).join('')+'</div><p class="item-sub">Meilleur temps enregistré : <strong>'+escapeHtml(samples[values.indexOf(best)].lapTime)+'</strong> · '+samples.length+' sessions affichées</p>';
