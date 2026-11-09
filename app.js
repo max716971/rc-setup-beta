@@ -7054,7 +7054,7 @@ function setupInstallPrompt() {
 document.getElementById('checkAppUpdate')?.addEventListener('click', checkForAppUpdate);
 document.querySelectorAll('.nav-item').forEach((button) => button.addEventListener('click', () => setView(button.dataset.view)));
 document.querySelectorAll('[data-view]:not(.nav-item)').forEach((button) => button.addEventListener('click', () => navigateToTarget(button.dataset.view, button.dataset.navTarget || '', button.dataset.openForm || '')));
-document.querySelectorAll('.add-entry').forEach((button) => button.addEventListener('click', () => document.getElementById(button.dataset.form).classList.toggle('hidden')));
+document.querySelectorAll('.add-entry').forEach((button) => button.addEventListener('click', () => { const form = document.getElementById(button.dataset.form); const opening = form.classList.contains('hidden'); form.classList.toggle('hidden'); if (opening) form.scrollIntoView({ behavior: 'smooth', block: 'start' }); }));
 document.querySelectorAll('[data-shortcut-view]').forEach(button => button.addEventListener('click', () => navigateToTarget(button.dataset.shortcutView, button.dataset.shortcutTarget || '', button.dataset.shortcutOpen || '')));
 document.querySelectorAll('[data-go-view]').forEach((button) => button.addEventListener('click', (event) => { event.preventDefault(); setView(button.dataset.goView); }));
 renderCarCatalogBrandPicker();
