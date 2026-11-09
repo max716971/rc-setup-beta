@@ -5837,6 +5837,40 @@ function renderDashboard() {
   document.getElementById('carCount').textContent = state.cars.length;
   document.getElementById('trackCount').textContent = state.tracks.length;
   document.getElementById('setupCount').textContent = state.setups.length;
+  const nudge = document.getElementById('homeNudge');
+  if (nudge) {
+    const title = document.getElementById('homeNudgeTitle');
+    const message = document.getElementById('homeNudgeText');
+    const action = document.getElementById('homeNudgeAction');
+    const icon = document.getElementById('homeNudgeIcon');
+    let nextView = 'cars', nextForm = '';
+    if (!state.cars.length) {
+      title.textContent = 'Commence par ton garage';
+      message.textContent = 'Ajoute ta première voiture pour organiser ses équipements et ses réglages.';
+      action.textContent = 'Ajouter une voiture →';
+      icon.textContent = '🚗';
+      nextView = 'cars'; nextForm = 'carForm';
+    } else if (!state.setups.length) {
+      title.textContent = 'Ta première fiche de réglages';
+      message.textContent = 'Ton garage est prêt. Crée un setup pour garder une trace de ta configuration.';
+      action.textContent = 'Créer un setup →';
+      icon.textContent = '⚙️';
+      nextView = 'setups'; nextForm = 'setupForm';
+    } else {
+      title.textContent = 'Ton atelier est en route';
+      message.textContent = state.setups.length + ' fiche' + (state.setups.length > 1 ? 's' : '') + ' enregistrée' + (state.setups.length > 1 ? 's' : '') + '. Continue à noter tes essais pour suivre tes progrès.';
+      action.textContent = 'Voir mes setups →';
+      icon.textContent = '🏁';
+      nextView = 'setups';
+    }
+    action.onclick = () => {
+      setView(nextView);
+      if (nextForm) {
+        const form = document.getElementById(nextForm);
+        if (form) { form.classList.remove('hidden'); form.scrollIntoView({behavior:'smooth',block:'start'}); }
+      }
+    };
+  }
   const container = document.getElementById('recentSetups');
   container.replaceChildren();
   const recent = [...state.setups].sort((a,b)=>new Date(b.updatedAt||b.createdAt||0)-new Date(a.updatedAt||a.createdAt||0)).slice(0,4);
