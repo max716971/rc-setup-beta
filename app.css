@@ -1254,3 +1254,16 @@ button, a, [role="button"] { touch-action: manipulation; }
     font-size: 9px;
   }
 }
+
+
+/* Centre d'aide : chapitres numérotés repliables, comme les questions fréquentes. */
+.help-accordion{display:block}
+.help-accordion>.help-section-toggle{display:flex;align-items:center;justify-content:space-between;gap:14px;cursor:pointer;list-style:none}
+.help-accordion>.help-section-toggle::-webkit-details-marker{display:none}
+.help-accordion>.help-section-toggle::after{content:"＋";flex:0 0 auto;display:grid;place-items:center;width:30px;height:30px;border:1px solid var(--line);border-radius:9px;color:var(--accent);font-size:19px;font-weight:700}
+.help-accordion[open]>.help-section-toggle::after{content:"−"}
+.help-accordion>.help-section-toggle .help-section-heading{min-width:0;margin:0}
+.help-accordion>.help-section-toggle .help-section-heading h2{margin-bottom:0}
+.help-accordion[open]>.help-section-toggle{margin-bottom:14px}
+.help-accordion:not([open]){padding-top:17px;padding-bottom:17px}
+.help-accordion>.help-section-toggle:focus-visible{outline:2px solid var(--accent);outline-offset:4px;border-radius:8px}
