@@ -5784,9 +5784,23 @@ let setupDraftSource = null;
 let skipSetupReset = false;
 const emptyStateTemplate = document.getElementById('emptyStateTemplate');
 
+let stateLoadBlocked = false;
+
 function loadState() {
   try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw === null || raw === '') {
+      return { cars: [], tracks: [], setups: [], maintenance: [], batteries: [] };
+    }
+    const saved = JSON.parse(raw);
+    if (!saved || typeof saved !== 'object' || Array.isArray(saved)) {
+      throw new Error('Structure principale invalide');
+    }
+    for (const key of ['cars', 'tracks', 'setups', 'maintenance', 'batteries']) {
+      if (saved[key] !== undefined && !Array.isArray(saved[key])) {
+        throw new Error('Donnée invalide : ' + key);
+      }
+    }
     return {
       cars: Array.isArray(saved.cars) ? saved.cars : [],
       tracks: Array.isArray(saved.tracks) ? saved.tracks : [],
@@ -5795,12 +5809,17 @@ function loadState() {
       batteries: Array.isArray(saved.batteries) ? saved.batteries : []
     };
   } catch (error) {
-    console.error('Impossible de lire les données locales', error);
+    stateLoadBlocked = true;
+    console.error('Lecture des données locales impossible : original conservé, écriture bloquée.', error);
     return { cars: [], tracks: [], setups: [], maintenance: [], batteries: [] };
   }
 }
 
 function saveState() {
+  if (stateLoadBlocked) {
+    showToast('Données locales protégées : aucune écriture ne sera faite. Restaure une sauvegarde depuis Aide.');
+    return false;
+  }
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     window.dispatchEvent(new Event('rc-setup-data-changed'));
@@ -7102,4 +7121,7 @@ updateVehicleSpecificFields();
 setView('dashboard', false);
 registerServiceWorker();
 setupInstallPrompt();
+if (stateLoadBlocked) {
+  showToast('Lecture des données impossible : elles sont conservées sans écrasement. Consulte Aide pour restaurer une sauvegarde.');
+}
 
