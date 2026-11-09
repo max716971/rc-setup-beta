@@ -1269,3 +1269,13 @@ button, a, [role="button"] { touch-action: manipulation; }
 .help-accordion>.help-section-toggle:focus-visible{outline:2px solid var(--accent);outline-offset:4px;border-radius:8px}
 /* Accueil : éviter la césure automatique du mot « supérieure » */
 #dashboardView .home-hero h1 em{hyphens:none;-webkit-hyphens:none}
+
+
+/* Bibliothèque de setups : deux vues sur les mêmes fiches enregistrées. */
+.setup-library-panel{display:grid;gap:14px;margin:2px 0 4px;padding:16px;border:1px solid var(--line);border-radius:18px;background:rgba(24,35,49,.72)}
+.setup-library-tabs{display:flex;gap:8px;align-items:center;border-bottom:1px solid var(--line);padding-bottom:12px}
+.setup-library-tab{min-height:40px;padding:0 15px;border:1px solid transparent;border-radius:11px;background:transparent;color:var(--muted);font-size:12px;font-weight:800}
+.setup-library-tab.active{border-color:rgba(255,138,0,.28);background:rgba(255,138,0,.12);color:var(--accent)}
+.setup-library-filters{margin:0}
+.setup-library-filters input,.setup-library-filters select{min-width:0;width:100%}
+@media(max-width:560px){.setup-library-panel{padding:12px}.setup-library-tabs{display:grid;grid-template-columns:1fr 1fr}.setup-library-tab{padding:0 8px;font-size:11px}.setup-library-filters{grid-template-columns:1fr 1fr}.setup-library-filters input[type=search]{grid-column:1/-1}}
