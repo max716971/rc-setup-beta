@@ -771,3 +771,89 @@ button, a, [role="button"] { touch-action: manipulation; }
 #dashboardView .button-primary:hover,.button-primary:hover{background:#ff9d2e;color:#17200c}
 #dashboardView .button-primary{box-shadow:0 7px 22px rgba(255,138,0,.16)}
 @media(max-width:720px){.home-nudge{gap:10px;padding:12px}.home-nudge-icon{flex-basis:36px;width:36px;height:36px;font-size:17px}.home-nudge strong{font-size:12px}.home-nudge p{font-size:9px}.home-nudge>button{max-width:116px;padding:8px;font-size:9px;white-space:normal}}
+
+
+/* BETA DASHBOARD V2 — racing cockpit visual refresh */
+#dashboardView{gap:22px}
+#dashboardView .home-hero{min-height:390px;padding:clamp(26px,4.5vw,52px);border:1px solid rgba(255,145,31,.42);border-radius:28px;background:radial-gradient(ellipse at 78% 48%,rgba(255,132,24,.2),transparent 34%),radial-gradient(ellipse at 16% 100%,rgba(38,102,143,.2),transparent 42%),linear-gradient(118deg,#09121d 0%,#14283a 54%,#0b1724 100%);box-shadow:0 26px 70px rgba(0,0,0,.32)}
+#dashboardView .home-hero:before{opacity:.19;background:linear-gradient(90deg,transparent 49.8%,rgba(255,255,255,.12) 50%,transparent 50.2%),repeating-linear-gradient(0deg,transparent 0 35px,rgba(255,255,255,.07) 36px 37px)}
+#dashboardView .home-hero-copy{max-width:570px}
+#dashboardView .home-overline{font-size:10px;letter-spacing:.2em}
+#dashboardView .home-hero h1{max-width:600px;margin:22px 0 16px;font-size:clamp(42px,6.2vw,72px);line-height:.94;letter-spacing:-.065em}
+#dashboardView .home-hero h1 em{display:inline-block;color:#ff9a32;text-shadow:0 5px 28px rgba(255,145,31,.18)}
+#dashboardView .home-hero-copy>p{max-width:440px;font-size:13px;line-height:1.85;color:#c0ccda}
+#dashboardView .home-hero-actions{margin-top:26px;gap:12px}
+#dashboardView .home-hero-actions .button{min-height:46px;padding-inline:18px;border-radius:13px;font-size:12px}
+#dashboardView .home-beta-tag{top:18px;right:20px;padding:7px 11px;border:1px solid rgba(255,255,255,.16);border-radius:99px;background:rgba(3,9,16,.42);color:#ff9a32;letter-spacing:.12em}
+#dashboardView .cockpit-visual{position:absolute;right:3.5%;top:50%;width:340px;height:310px;transform:translateY(-50%);display:flex;flex-direction:column;justify-content:space-between;padding:15px 17px;border:1px solid rgba(255,255,255,.15);border-radius:22px;background:linear-gradient(150deg,rgba(23,42,59,.88),rgba(5,13,22,.84));box-shadow:0 25px 60px rgba(0,0,0,.28);opacity:1;backdrop-filter:blur(8px)}
+.cockpit-topline,.cockpit-bottomline{display:flex;align-items:center;justify-content:space-between;color:#8ea2b6;font-size:8px;font-weight:850;letter-spacing:.16em}
+.cockpit-topline i{width:6px;height:6px;border-radius:50%;background:#61d69a;box-shadow:0 0 12px #61d69a}
+.cockpit-topline b{color:#61d69a;font-size:8px}
+.cockpit-track{position:relative;flex:1;margin:12px 0;overflow:hidden;border-radius:15px;background:radial-gradient(ellipse at center,rgba(255,145,31,.11),transparent 58%),linear-gradient(135deg,rgba(255,255,255,.025),transparent)}
+.track-orbit{position:absolute;left:50%;top:50%;width:210px;height:120px;border:2px solid rgba(255,255,255,.25);border-radius:48% 52% 42% 58%/55% 42% 58% 45%;transform:translate(-50%,-50%) rotate(-22deg)}
+.track-orbit:after{content:"";position:absolute;inset:8px;border:1px dashed rgba(255,255,255,.22);border-radius:inherit}
+.orbit-two{width:245px;height:145px;border-color:rgba(255,145,31,.48);transform:translate(-50%,-50%) rotate(28deg)}
+.track-apex{position:absolute;left:50%;top:50%;width:7px;height:7px;border-radius:50%;background:#ff982e;box-shadow:0 0 0 8px rgba(255,152,46,.1),0 0 24px #ff982e}
+.track-car{position:absolute;left:69%;top:27%;width:29px;height:13px;border:1px solid #ffd09a;border-radius:5px;background:linear-gradient(90deg,#ff8d24,#ffc078);transform:rotate(34deg);box-shadow:0 0 18px rgba(255,145,31,.45)}
+.track-car:before,.track-car:after{content:"";position:absolute;top:-3px;width:6px;height:4px;border-radius:2px;background:#101b28}
+.track-car:before{left:4px}.track-car:after{right:4px}
+.track-car span{position:absolute;left:10px;top:2px;width:8px;height:7px;border-radius:2px;background:#20364a}
+.track-crosshair{position:absolute;left:13px;bottom:12px;color:rgba(255,255,255,.45);font-size:8px;font-weight:800;letter-spacing:.18em}
+.cockpit-readouts{display:grid;grid-template-columns:1fr 1.4fr;gap:8px}
+.cockpit-readouts>div{padding:10px 11px;border:1px solid rgba(255,255,255,.09);border-radius:11px;background:rgba(255,255,255,.035)}
+.cockpit-readouts small{display:block;color:#8095a9;font-size:7px;font-weight:850;letter-spacing:.16em}
+.cockpit-readouts strong{display:block;margin-top:4px;color:#f4f7fa;font-size:11px;letter-spacing:.04em}
+.cockpit-readouts>div:last-child strong{color:#ffad58;font-size:9px}
+.cockpit-bottomline{padding-top:10px}
+#dashboardView .home-section-title{margin-bottom:14px}
+#dashboardView .home-section-title h2{font-size:clamp(18px,2.5vw,23px);letter-spacing:-.035em}
+#dashboardView .home-stats{gap:13px}
+#dashboardView .home-stat{position:relative;min-height:142px;padding:17px;border:1px solid rgba(255,255,255,.09);border-radius:18px;background:linear-gradient(145deg,rgba(27,43,60,.9),rgba(12,21,33,.96));box-shadow:0 12px 28px rgba(0,0,0,.12);transition:transform .2s,border-color .2s}
+#dashboardView .home-stat:hover{transform:translateY(-3px);border-color:rgba(255,145,31,.4)}
+#dashboardView .home-stat-icon{width:37px;height:37px;border:1px solid rgba(255,145,31,.2);border-radius:12px;background:rgba(255,145,31,.1)}
+#dashboardView .home-stat strong{font-size:34px;line-height:1.05}
+#dashboardView .home-stat small{font-size:10px}
+#dashboardView .home-stat>b{margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,.08);color:#ffad58;font-size:9px;letter-spacing:.04em}
+#dashboardView .home-nudge{padding:17px 19px;border-color:rgba(255,145,31,.32);border-radius:18px;background:linear-gradient(100deg,rgba(255,145,31,.13),rgba(17,31,46,.96) 72%)}
+#dashboardView .home-workspace,#dashboardView .home-shortcuts{padding:22px;border:1px solid rgba(255,255,255,.09);border-radius:22px;background:linear-gradient(145deg,rgba(21,34,49,.97),rgba(9,17,27,.98));box-shadow:0 16px 40px rgba(0,0,0,.12)}
+#dashboardView .home-workspace-grid{gap:12px}
+#dashboardView .home-work-card{min-height:104px;padding:16px;border:1px solid rgba(255,255,255,.075);border-radius:16px;background:rgba(255,255,255,.025);transition:transform .2s,border-color .2s,background .2s}
+#dashboardView .home-work-card:hover{transform:translateY(-3px);border-color:rgba(255,145,31,.34);background:rgba(255,145,31,.055)}
+#dashboardView .home-work-featured{border-color:rgba(255,145,31,.3);background:linear-gradient(115deg,rgba(255,145,31,.12),rgba(255,255,255,.025))}
+#dashboardView .home-work-icon{border:1px solid rgba(255,145,31,.18);border-radius:12px;background:rgba(255,145,31,.1)}
+#dashboardView .home-work-copy strong{font-size:12px}
+#dashboardView .home-work-copy small{font-size:10px;line-height:1.55}
+#dashboardView .home-lower-grid>.panel{border:1px solid rgba(255,255,255,.09);border-radius:20px;background:linear-gradient(145deg,rgba(20,32,47,.96),rgba(9,17,27,.98))}
+#dashboardView .home-shortcut{border:1px solid rgba(255,255,255,.08);border-radius:15px;background:rgba(255,255,255,.025)}
+#dashboardView .home-shortcut:hover{border-color:rgba(255,145,31,.35);background:rgba(255,145,31,.055)}
+#dashboardView .home-privacy{border-radius:15px;background:rgba(255,255,255,.025)}
+@media(max-width:720px){
+ #dashboardView{gap:15px}
+ #dashboardView .home-hero{min-height:510px;padding:27px 19px 18px;align-items:flex-start;border-radius:22px}
+ #dashboardView .home-hero-copy{max-width:100%}
+ #dashboardView .home-hero h1{max-width:330px;margin-top:22px;font-size:clamp(37px,10vw,47px);line-height:.98}
+ #dashboardView .home-hero-copy>p{max-width:310px;font-size:11px;line-height:1.65}
+ #dashboardView .home-hero-actions{gap:8px;margin-top:18px}
+ #dashboardView .home-hero-actions .button{min-height:42px;padding-inline:12px;font-size:10px}
+ #dashboardView .cockpit-visual{left:14px;right:14px;top:auto;bottom:14px;width:auto;height:195px;transform:none;padding:10px 12px;border-radius:16px}
+ #dashboardView .cockpit-track{margin:6px 0}
+ #dashboardView .track-orbit{width:145px;height:74px}
+ #dashboardView .orbit-two{width:175px;height:91px}
+ #dashboardView .track-car{left:67%;top:24%;transform:scale(.8) rotate(34deg)}
+ #dashboardView .cockpit-readouts>div{padding:6px 8px}
+ #dashboardView .cockpit-readouts strong{font-size:9px}
+ #dashboardView .cockpit-readouts>div:last-child strong{font-size:8px}
+ #dashboardView .cockpit-bottomline{padding-top:6px;font-size:7px}
+ #dashboardView .home-beta-tag{top:10px;right:10px;padding:5px 8px}
+ #dashboardView .home-stats{gap:7px}
+ #dashboardView .home-stat{min-height:118px;padding:10px}
+ #dashboardView .home-stat strong{font-size:27px}
+ #dashboardView .home-stat small{font-size:8px}
+ #dashboardView .home-stat>b{font-size:7px}
+ #dashboardView .home-workspace,#dashboardView .home-shortcuts{padding:14px}
+ #dashboardView .home-workspace-grid{grid-template-columns:1fr 1fr;gap:8px}
+ #dashboardView .home-work-card{min-height:88px;padding:10px;gap:8px}
+ #dashboardView .home-work-copy strong{font-size:10px}
+ #dashboardView .home-work-copy small{font-size:8px}
+ #dashboardView .home-work-icon{width:31px;height:31px;flex-basis:31px}
+}
