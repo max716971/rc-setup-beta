@@ -5901,13 +5901,7 @@ function renderDashboard() {
       icon.textContent = '🏁';
       nextView = 'setups';
     }
-    action.onclick = () => {
-      setView(nextView);
-      if (nextForm) {
-        const form = document.getElementById(nextForm);
-        if (form) { form.classList.remove('hidden'); form.scrollIntoView({behavior:'smooth',block:'start'}); }
-      }
-    };
+    action.onclick = () => navigateToTarget(nextView, nextForm || (nextView === 'setups' ? 'setupsView' : 'carsView'), nextForm);
   }
   const container = document.getElementById('recentSetups');
   container.replaceChildren();
