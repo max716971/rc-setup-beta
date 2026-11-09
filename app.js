@@ -6782,7 +6782,11 @@ function downloadJsonFile(data,filename){
   link.href=url;link.download=filename;document.body.append(link);link.click();link.remove();URL.revokeObjectURL(url);
 }
 function buildSingleSetupPayload(setup,sharedBy,sharedAt){
-  const sharedSetup={...setup,isShared:true,sharedBy,sharedAt,photos:[]},sourceCar=getCarById(setup.carId)||null,car=sourceCar?{...sourceCar,photos:[]}:null,track=getTrackById(setup.trackId)|| (setup.sharedTrackName?{name:setup.sharedTrackName,surface:setup.sharedTrackSurface||setup.surface||'',grip:setup.sharedTrackGrip||setup.grip||'',location:setup.sharedTrackLocation||'',details:setup.sharedTrackDetails||''}:null);
+  const sharedSetup={...setup,isShared:true,sharedBy,sharedAt,photos:[]};
+  const sourceCar=getCarById(setup.carId)||setup.sharedCar||null;
+  const car=sourceCar?{...sourceCar,name:sourceCar.name||getSetupCarName(setup)||'Voiture non renseignée',photos:[]}:{name:getSetupCarName(setup)||'Voiture non renseignée',photos:[]};
+  const sourceTrack=getTrackById(setup.trackId)||setup.sharedTrack||null;
+  const track=sourceTrack?{...sourceTrack,name:sourceTrack.name||setup.sharedTrackName||setup.trackName||'Piste non renseignée'}:{name:setup.sharedTrackName||setup.trackName||'Piste non renseignée',surface:setup.sharedTrackSurface||setup.surface||'',grip:setup.sharedTrackGrip||setup.grip||'',location:setup.sharedTrackLocation||'',details:setup.sharedTrackDetails||''};
   return {format:'rc-setup-single',version:3,exportedAt:sharedAt,sharedBy,car,track,setup:sharedSetup};
 }
 function base64UrlEncodeUtf8(value){
