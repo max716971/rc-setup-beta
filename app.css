@@ -1174,10 +1174,8 @@ button, a, [role="button"] { touch-action: manipulation; }
   justify-content: space-between;
   gap: 18px;
 }
-#setupsView .setups-heading-top .heading-actions { flex: 0 0 auto; }
-#setupsView .setups-compare-action { margin-top: 12px; }
-#setupsView .setups-compare-action .button { min-height: 36px; }
-@media(max-width:700px) { #setupsView .setups-compare-action { margin-top: 10px; } #setupsView .setups-compare-action .button { width: 100%; } }
+#setupsView .setups-heading-top .heading-actions { flex: 0 0 auto; display: grid; grid-template-columns: max-content max-content; gap: 9px; }
+#setupsView .setups-heading-top .heading-actions .setups-compare-button { grid-column: 1 / -1; width: 100%; min-height: 36px; }
 #setupsView .setups-import-area {
   display: grid;
   grid-template-columns: minmax(0,1fr) minmax(220px,1.05fr) auto;
