@@ -1,5 +1,5 @@
 const CACHE_NAME = 'rc-setup-beta-v3';
-const APP_SHELL = ['./', './index.html', './app.css?v=2', './materials.css?v=2', './app.js?v=2', './materials.js?v=2', './backup.js?v=2', './manifest.webmanifest', './assets/rc-setup-beta-logo.svg?v=2','./assets/rc-setup-beta-180.png?v=3','./assets/rc-setup-beta-192.png?v=3','./assets/rc-setup-beta-512.png?v=3', './icon.svg?v=2'];
+const APP_SHELL = ['./', './index.html', './app.css?v=2', './materials.css?v=2', './app.js?v=2', './materials.js?v=2', './backup.js?v=2', './manifest.webmanifest', './assets/rc-setup-beta-logo.svg?v=2','./assets/rc-setup-beta-180.png?v=3', './icon.svg?v=2'];
 self.addEventListener('install', event => { event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL))); self.skipWaiting(); });
 self.addEventListener('activate', event => { event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key.startsWith('rc-setup-beta-') && key !== CACHE_NAME).map(key => caches.delete(key))))); self.clients.claim(); });
 const LOGO_HOSTS = new Set(['www.hobbywingdirect.com','apps.associatedelectrics.com','schumacher-racing.com','atomfire.com','6mik-racing.com','cdn.houseofrc.com','www.cmldistribution.co.uk','www.wartelle-shop.com','upload.wikimedia.org','www.pr-rc.com']);
