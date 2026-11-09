@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rc-setup-beta-v32';
+const CACHE_NAME = 'rc-setup-beta-v33';
 const APP_SHELL = ['./', './index.html', './app.css?v=13', './materials.css?v=4', './app.js?v=9', './materials.js?v=4', './backup.js?v=2', './manifest.webmanifest', './assets/rc-setup-beta-logo.svg?v=2','./assets/rc-setup-beta-180.png?v=3', './icon.svg?v=2'];
 self.addEventListener('install', event => { event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL))); self.skipWaiting(); });
 self.addEventListener('activate', event => { event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key.startsWith('rc-setup-beta-') && key !== CACHE_NAME).map(key => caches.delete(key))))); self.clients.claim(); });
@@ -31,7 +31,15 @@ self.addEventListener('fetch', event => {
       }
       return response;
     } catch {
-      return caches.match(event.request).then(cached => cached || caches.match('./index.html'));
+      const cached = await caches.match(event.request);
+      if (cached) return cached;
+      // Le HTML ne doit servir de secours qu'aux navigations.
+      // Renvoyer index.html pour un script/CSS manquant provoque des erreurs
+      // de parsing et peut laisser l'application sur un écran vide.
+      if (event.request.mode === 'navigate') {
+        return (await caches.match('./index.html')) || new Response('Application hors ligne indisponible', { status: 503 });
+      }
+      return new Response('Ressource indisponible', { status: 503 });
     }
   })());
 });
