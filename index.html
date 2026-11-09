@@ -100,12 +100,12 @@
         <button class="help-quick-card" data-view="materials" type="button"><span>🔩</span><strong>Matériel</strong><small>Références, recherche, ajout manuel et inventaire</small></button>
         <button class="help-quick-card" data-view="tools" type="button"><span>📊</span><strong>Outils</strong><small>Calcul, diagnostic et sauvegardes</small></button>
       </div>
-      <section class="help-section"><div class="help-section-heading"><span class="kicker">01 · DÉMARRER</span><h2>Préparer ton espace de travail</h2></div>
+      <details class="help-section help-accordion"><summary class="help-section-toggle"><div class="help-section-heading"><span class="kicker">01 · DÉMARRER</span><h2>Préparer ton espace de travail</h2></div></summary>
         <article class="help-guide-row"><span class="help-guide-number">01</span><div><h3>Choisir un modèle dans la bibliothèque ou ajouter une voiture au Garage</h3><p>La bibliothèque propose 720 modèles prédéfinis (filtrables par marque, génération et recherche). Ajoute un modèle au Garage pour créer ta fiche personnelle, ou utilise l’ajout manuel si ta voiture n’est pas référencée. Tu peux renseigner son architecture (2WD/4WD), son échelle, ses équipements (moteur, ESC, servo, pneus, amortisseurs), ajouter jusqu’à trois photos et conserver l’historique des pièces remplacées ou modifiées. Les setups associés sont accessibles depuis sa fiche détaillée.</p><button class="button button-soft" data-view="cars" type="button">Ouvrir le Garage →</button></div></article>
         <article class="help-guide-row"><span class="help-guide-number">02</span><div><h3>Créer et modifier tes pistes</h3><p>Enregistre une piste, son type, sa surface et son niveau d’adhérence. Distingue notamment tartan, moquette EOS, moquette basse ou haute, astro, terre, béton, bitume et sol de gymnase. Tu peux modifier tes pistes au fil des évolutions du circuit ; les setups conservent leurs propres conditions de session.</p><button class="button button-soft" data-view="tracks" type="button">Ouvrir les pistes →</button></div></article>
         <article class="help-guide-row"><span class="help-guide-number">03</span><div><h3>Explorer la bibliothèque matériel</h3><p>Recherche les références par marque et catégorie, consulte les fiches et ajoute tes propres articles si une référence manque. L’inventaire permet de suivre les quantités disponibles et de repérer les articles en stock faible ou épuisé. La bibliothèque est distincte de ton Garage : elle centralise les composants, pas les modèles de voitures.</p><button class="button button-soft" data-view="materials" type="button">Ouvrir le matériel →</button></div></article>
-      </section>
-      <section class="help-section"><div class="help-section-heading"><span class="kicker">02 · PRÉPARER UNE SESSION</span><h2>Créer une fiche de setup complète</h2><p>Dans Setups, sélectionne une voiture et une piste, puis renseigne uniquement les éléments qui correspondent à l’architecture de ta voiture.</p></div>
+      </details>
+      <details class="help-section help-accordion"><summary class="help-section-toggle"><div class="help-section-heading"><span class="kicker">02 · PRÉPARER UNE SESSION</span><h2>Créer une fiche de setup complète</h2><p>Dans Setups, sélectionne une voiture et une piste, puis renseigne uniquement les éléments qui correspondent à l’architecture de ta voiture.</p></div></summary>
         <div class="help-setup-grid">
           <article class="help-setup-card"><b>01</b><h3>Session & conditions</h3><p>Nom du setup, voiture, piste, date, température, météo, surface, adhérence et objectif.</p></article>
           <article class="help-setup-card"><b>02</b><h3>Pneus & inserts</h3><p>Références avant et arrière, gomme, inserts et détails de montage.</p></article>
@@ -119,8 +119,8 @@
         </div>
         <p class="help-tip"><strong>Conseil :</strong> enregistre une base de référence avant de modifier la voiture. Change un seul paramètre à la fois et compare les résultats sur une même piste et dans des conditions proches.</p>
         <button class="button button-primary" data-view="setups" type="button">Accéder aux setups →</button>
-      </section>
-      <section class="help-section"><div class="help-section-heading"><span class="kicker">03 · ANALYSER LES RÉSULTATS</span><h2>Comparer, chronométrer et imprimer</h2></div>
+      </details>
+      <details class="help-section help-accordion"><summary class="help-section-toggle"><div class="help-section-heading"><span class="kicker">03 · ANALYSER LES RÉSULTATS</span><h2>Comparer, chronométrer et imprimer</h2></div></summary>
         <div class="help-feature-list">
           <article><span>⇄</span><div><h3>Comparateur de setups</h3><p>Dans Setups → « Retrouver un réglage », sélectionne deux fiches pour afficher les réglages qui diffèrent et comparer leurs chronos. Les réglages identiques sont masqués pour faciliter la lecture.</p></div></article>
           <article><span>⏱</span><div><h3>Chronos & carnet de test</h3><p>Ouvre ou modifie une fiche de setup, puis complète la section 09. Les meilleurs temps enregistrés alimentent l’évolution des chronos sur l’accueil et dans les outils de suivi.</p></div></article>
@@ -128,16 +128,16 @@
           
         </div>
         <button class="button button-soft" data-view="setups" type="button">Retrouver mes setups →</button>
-      </section>
-      <section class="help-section"><div class="help-section-heading"><span class="kicker">04 · OUTILS</span><h2>Calculer et diagnostiquer</h2></div>
+      </details>
+      <details class="help-section help-accordion"><summary class="help-section-toggle"><div class="help-section-heading"><span class="kicker">04 · OUTILS</span><h2>Calculer et diagnostiquer</h2></div></summary>
         <div class="help-feature-list">
           <article><span>⚙️</span><div><h3>Rapport de transmission</h3><p>Renseigne le nombre de dents du pignon et de la couronne. Le rapport externe est calculé automatiquement ; ajoute le rapport interne pour obtenir le rapport total, et le diamètre de roue pour le développement théorique.</p></div></article>
           <article><span>🧭</span><div><h3>Diagnostic comportement</h3><p>Choisis le symptôme (sous-virage, survirage, manque de motricité ou instabilité), l’adhérence et l’architecture 2WD/4WD. Les conseils sont des pistes de vérification, pas des réglages universels.</p></div></article>
         </div>
         <button class="button button-soft" data-view="tools" type="button">Ouvrir les outils →</button>
-      </section>
+      </details>
       <section class="help-section update-help-panel"><div class="help-section-heading"><span class="kicker">MISES À JOUR</span><h2>Mettre à jour RC SETUP</h2><p>Recherche la dernière version disponible et recharge l’application si une mise à jour est trouvée. Tes voitures, réglages et sauvegardes locales sont conservés.</p></div><button class="button button-primary" id="checkAppUpdate" type="button">↻ Rechercher une mise à jour</button><p class="item-sub" id="appUpdateStatus" role="status" aria-live="polite">Appuie sur le bouton pour vérifier si une nouvelle version est disponible.</p></section>
-      <section class="help-section"><div class="help-section-heading"><span class="kicker">05 · PROTÉGER TES DONNÉES</span><h2>Sauvegarde, export et partage</h2></div>
+      <details class="help-section help-accordion"><summary class="help-section-toggle"><div class="help-section-heading"><span class="kicker">05 · PROTÉGER TES DONNÉES</span><h2>Sauvegarde, export et partage</h2></div></summary>
         <div class="help-feature-list">
           <article><span>⟲</span><div><h3>Sauvegarde automatique</h3><p>Une copie locale est conservée sur cet appareil. Le bouton de restauration permet de récupérer la dernière sauvegarde automatique disponible.</p></div></article>
           <article><span>⇩</span><div><h3>Exporter / importer JSON</h3><p>Exporte régulièrement un fichier JSON et garde-le hors de l’ordinateur. L’import complet remplace les voitures, pistes et setups présents ; vérifie d’abord que tu disposes d’une sauvegarde récente.</p></div></article>
@@ -145,7 +145,7 @@
         </div>
         <p class="help-warning"><strong>À retenir :</strong> la sauvegarde automatique reste liée au navigateur et à l’appareil. Elle ne remplace pas un export JSON externe et ne synchronise pas les appareils entre eux.</p>
         <button class="button button-primary" data-view="tools" type="button">Gérer mes sauvegardes →</button>
-      </section>
+      </details>
       <section class="panel help-faq"><div class="panel-header"><div><span class="kicker">QUESTIONS FRÉQUENTES</span><h2>Besoin d’un rappel ?</h2></div></div>
         <details><summary>Une mise à jour de l’application efface-t-elle mes données ?</summary><p>Non, les données sont stockées séparément du code de l’application dans le navigateur. Une mise à jour normale ne doit pas les supprimer. Garde tout de même un export JSON externe avant une opération importante.</p></details>
         <details><summary>Mes données sont-elles synchronisées sur tous mes appareils ?</summary><p>Non. Le stockage automatique est local à ce navigateur et cet appareil. Pour transférer les données, exporte un JSON puis importe-le sur l’autre appareil.</p></details>
