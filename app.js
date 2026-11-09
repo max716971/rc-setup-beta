@@ -5844,6 +5844,21 @@ function showToast(message) {
 }
 function getCarById(id) { return state.cars.find((car) => car.id === id); }
 function getTrackById(id) { return state.tracks.find((track) => track.id === id); }
+function navigateToTarget(viewName, targetId = '', formId = '') {
+  if (!viewName) return;
+  setView(viewName, false);
+  const form = formId ? document.getElementById(formId) : null;
+  if (form) form.classList.remove('hidden');
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    const target = targetId ? document.getElementById(targetId) : null;
+    if (target) {
+      const accordion = target.closest('details');
+      if (accordion) accordion.open = true;
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else if (form) form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    else window.scrollTo({ top: 0, behavior: 'smooth' });
+  }));
+}
 function setView(viewName, shouldScroll = true) {
   document.querySelectorAll('.nav-item').forEach((button) => button.classList.toggle('active', button.dataset.view === viewName));
   document.querySelectorAll('.view').forEach((view) => {
@@ -5886,13 +5901,7 @@ function renderDashboard() {
       icon.textContent = '🏁';
       nextView = 'setups';
     }
-    action.onclick = () => {
-      setView(nextView);
-      if (nextForm) {
-        const form = document.getElementById(nextForm);
-        if (form) { form.classList.remove('hidden'); form.scrollIntoView({behavior:'smooth',block:'start'}); }
-      }
-    };
+    action.onclick = () => navigateToTarget(nextView, nextForm || (nextView === 'setups' ? 'setupsView' : 'carsView'), nextForm);
   }
   const container = document.getElementById('recentSetups');
   container.replaceChildren();
@@ -7013,27 +7022,9 @@ function setupInstallPrompt() {
 
 document.getElementById('checkAppUpdate')?.addEventListener('click', checkForAppUpdate);
 document.querySelectorAll('.nav-item').forEach((button) => button.addEventListener('click', () => setView(button.dataset.view)));
-document.querySelectorAll('[data-view]:not(.nav-item)').forEach((button) => button.addEventListener('click', () => setView(button.dataset.view)));
+document.querySelectorAll('[data-view]:not(.nav-item)').forEach((button) => button.addEventListener('click', () => navigateToTarget(button.dataset.view, button.dataset.navTarget || '', button.dataset.openForm || '')));
 document.querySelectorAll('.add-entry').forEach((button) => button.addEventListener('click', () => document.getElementById(button.dataset.form).classList.toggle('hidden')));
-document.querySelectorAll('[data-open-form]').forEach((button) => button.addEventListener('click', () => {
-  setView(button.dataset.view);
-  const form = document.getElementById(button.dataset.openForm);
-  form.classList.remove('hidden');
-  form.scrollIntoView({ behavior: 'smooth', block: 'start' });
-}));
-document.querySelectorAll('[data-shortcut-view]').forEach(button=>button.addEventListener('click',()=>{
-  const view=button.dataset.shortcutView;
-  const targetId=button.dataset.shortcutTarget;
-  setView(view);
-  if(button.dataset.shortcutOpen){
-    const form=document.getElementById(button.dataset.shortcutOpen);
-    if(form)form.classList.remove('hidden');
-  }
-  requestAnimationFrame(()=>requestAnimationFrame(()=>{
-    const target=document.getElementById(targetId);
-    if(target)target.scrollIntoView({behavior:'smooth',block:'start'});
-  }));
-}));
+document.querySelectorAll('[data-shortcut-view]').forEach(button => button.addEventListener('click', () => navigateToTarget(button.dataset.shortcutView, button.dataset.shortcutTarget || '', button.dataset.shortcutOpen || '')));
 document.querySelectorAll('[data-go-view]').forEach((button) => button.addEventListener('click', (event) => { event.preventDefault(); setView(button.dataset.goView); }));
 renderCarCatalogBrandPicker();
 document.getElementById('carCatalogBrandPicker')?.addEventListener('click',event=>{
