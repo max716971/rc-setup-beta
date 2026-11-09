@@ -5943,16 +5943,37 @@ function renderCars() {
     const setups=state.setups.filter(setup=>setup.carId===car.id).length;
     const itemType=car.type?escapeHtml(car.type):'Type non renseigné';
     const firstPhoto=Array.isArray(car.photos)&&car.photos[0]?car.photos[0]:'';
-    item.innerHTML = `<div class="${firstPhoto?'car-avatar-photo':'item-avatar car-avatar'}">${firstPhoto?`<img src="${escapeHtml(firstPhoto)}" alt="Photo de ${escapeHtml(car.name)}" loading="lazy">`:'🚗'}</div><div class="item-main"><h3>${escapeHtml(car.name)}</h3><p class="item-sub">${escapeHtml(car.brand || 'Marque / modèle non renseigné')} · ${escapeHtml(car.scale || 'Échelle non renseignée')} · ${escapeHtml(car.drive || 'Transmission non renseignée')} · ${itemType}</p><p class="item-detail">Créée le ${escapeHtml(formatDate(car.createdAt))} · ${setups} setup(s) associé(s) · ${Array.isArray(car.photos)?Math.min(3,car.photos.length):0}/3 photos</p>${car.notes ? `<p class="item-detail">${escapeHtml(car.notes)}</p>` : ''}<div class="car-card-actions"><button class="button button-soft view-car-details" data-id="${escapeHtml(car.id)}" type="button" aria-expanded="false">Fiche détaillée</button><button class="button button-soft edit-car" data-id="${escapeHtml(car.id)}" type="button">Modifier</button><button class="button button-quiet danger-action delete-car" data-id="${escapeHtml(car.id)}" type="button">Supprimer</button></div><div class="car-detail-panel hidden" id="car-detail-${escapeHtml(car.id)}">${carEquipmentMarkup(car)}</div></div>`;
+    item.innerHTML = `<div class="${firstPhoto?'car-avatar-photo':'item-avatar car-avatar'}">${firstPhoto?`<img src="${escapeHtml(firstPhoto)}" alt="Photo de ${escapeHtml(car.name)}" loading="lazy">`:'🚗'}</div><div class="item-main"><h3>${escapeHtml(car.name)}</h3><p class="item-sub">${escapeHtml(car.brand || 'Marque / modèle non renseigné')} · ${escapeHtml(car.scale || 'Échelle non renseignée')} · ${escapeHtml(car.drive || 'Transmission non renseignée')} · ${itemType}</p><p class="item-detail">Créée le ${escapeHtml(formatDate(car.createdAt))} · ${setups} setup(s) associé(s) · ${Array.isArray(car.photos)?Math.min(3,car.photos.length):0}/3 photos</p>${car.notes ? `<p class="item-detail">${escapeHtml(car.notes)}</p>` : ''}<div class="car-card-actions"><button class="button button-soft view-car-details" data-id="${escapeHtml(car.id)}" type="button" aria-expanded="false">Fiche détaillée</button><button class="button button-soft create-setup-for-car" data-id="${escapeHtml(car.id)}" type="button">＋ Créer un setup</button><button class="button button-soft edit-car" data-id="${escapeHtml(car.id)}" type="button">Modifier</button><button class="button button-quiet danger-action delete-car" data-id="${escapeHtml(car.id)}" type="button">Supprimer</button></div><div class="car-detail-panel hidden" id="car-detail-${escapeHtml(car.id)}">${carEquipmentMarkup(car)}</div></div>`;
     container.append(item);
   });
   container.querySelectorAll('.delete-car').forEach((button) => button.addEventListener('click', () => removeCar(button.dataset.id)));
   container.querySelectorAll('.edit-car').forEach((button) => button.addEventListener('click', () => openCarEditor(button.dataset.id)));
+  container.querySelectorAll('.create-setup-for-car').forEach(button=>button.addEventListener('click',()=>startSetupForCar(button.dataset.id)));
   container.querySelectorAll('.view-car-details').forEach(button=>button.addEventListener('click',()=>{
     const panel=document.getElementById('car-detail-'+button.dataset.id);if(!panel)return;
     const opening=panel.classList.contains('hidden');panel.classList.toggle('hidden',!opening);button.setAttribute('aria-expanded',String(opening));button.textContent=opening?'Masquer la fiche':'Fiche détaillée';
   }));
   container.querySelectorAll('.open-car-setup').forEach(button=>button.addEventListener('click',()=>showSetup(button.dataset.id)));
+}
+
+function startSetupForCar(carId){
+  const car=getCarById(carId);if(!car)return;
+  const form=document.getElementById('setupForm');if(!form)return;
+  editingSetupId=null;setupDraftSource=null;pendingPhotos=[];
+  form.dataset.preserveOnReset='false';
+  form.reset();
+  setView('setups');
+  setTimeout(()=>{
+    const carField=form.elements.namedItem('carId');
+    if(carField)carField.value=carId;
+    const submit=form.querySelector('button[type="submit"]');
+    if(submit)submit.textContent='Enregistrer le setup';
+    form.classList.remove('hidden');
+    renderPhotoPreviews();
+    updateVehicleSpecificFields();
+    form.scrollIntoView({behavior:'smooth',block:'start'});
+    showToast('Nouveau setup pour '+car.name+'.');
+  },0);
 }
 
 function renderTracks() {
