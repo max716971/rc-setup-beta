@@ -6992,7 +6992,7 @@ async function refreshAppWorker() {
   // Le Service Worker est seul responsable du cycle de vie de ses caches.
   // Ne jamais supprimer ici les caches actifs : ils peuvent contenir la version
   // hors-ligne actuellement utilisée pendant le téléchargement de la suivante.
-  const registration = await navigator.serviceWorker.register('./sw.js?v=4', { updateViaCache: 'none' });
+  const registration = await navigator.serviceWorker.register('./sw.js?v=5', { updateViaCache: 'none' });
   await registration.update();
   return registration;
 }
