@@ -6005,7 +6005,7 @@ function renderSetups() {
     const isShared=Boolean(setup.isShared||setup.sharedBy);
     const hay=[getSetupCarName(setup),track?.name,setup.sharedTrackName,effectiveSurface,effectiveGrip,setup.weather,setup.goal,setup.notes,setup.frontTires,setup.rearTires,setup.testedChanges,setup.testConclusion,setup.nextTest,setup.sharedBy,setup.isShared?'partagé':''].join(' ').toLocaleLowerCase('fr');
     return (mode!=='favorites'||Boolean(setup.favorite))&&(!query||hay.includes(query))&&(!carFilter||setup.carId===carFilter)&&(!trackFilter||setup.trackId===trackFilter)&&(!typeFilter||(typeFilter==='shared'?isShared:!isShared))&&(!surfaceFilter||effectiveSurface===surfaceFilter)&&(!gripFilter||effectiveGrip===gripFilter)&&(!from||date>=from)&&(!to||date<=to);
-  }).sort((a,b)=>Number(Boolean(b.favorite))-Number(Boolean(a.favorite))||new Date(b.updatedAt||b.createdAt||0)-new Date(a.updatedAt||a.createdAt||0));
+  }).sort((a,b)=>new Date(b.createdAt||b.created_at||0)-new Date(a.createdAt||a.created_at||0));
   if(!filtered.length){
     const empty=emptyState();
     empty.querySelector('span:last-child').textContent=mode==='favorites'&&!state.setups.some(s=>s.favorite)
