@@ -5993,19 +5993,28 @@ function renderTracks() {
 function renderSetups() {
   const container=document.getElementById('setupsList');container.replaceChildren();
   updateSetupFilterOptions();updateComparisonOptions();
-  const query=(document.getElementById('setupSearch')?.value||'').trim().toLocaleLowerCase('fr');
-  const carFilter=document.getElementById('setupCarFilter')?.value||'',trackFilter=document.getElementById('setupTrackFilter')?.value||'';
-  const surfaceFilter=document.getElementById('setupSurfaceFilter')?.value||'',gripFilter=document.getElementById('setupGripFilter')?.value||'';
-  const from=document.getElementById('setupDateFrom')?.value||'',to=document.getElementById('setupDateTo')?.value||'';
+  const query=(document.getElementById('setupLibrarySearch')?.value||'').trim().toLocaleLowerCase('fr');
+  const carFilter=document.getElementById('setupLibraryCarFilter')?.value||'',trackFilter=document.getElementById('setupLibraryTrackFilter')?.value||'';
+  const typeFilter=document.getElementById('setupLibraryTypeFilter')?.value||'';
+  const surfaceFilter=document.getElementById('setupLibrarySurfaceFilter')?.value||'',gripFilter=document.getElementById('setupLibraryGripFilter')?.value||'';
+  const from=document.getElementById('setupLibraryDateFrom')?.value||'',to=document.getElementById('setupLibraryDateTo')?.value||'';
+  const mode=document.querySelector('.setup-library-tab.active')?.dataset.setupMode||'all';
   const filtered=[...state.setups].filter(setup=>{
-    const car=getCarById(setup.carId),track=getTrackById(setup.trackId),date=setup.sessionDate||String(setup.createdAt||'').slice(0,10);
+    const track=getTrackById(setup.trackId),date=setup.sessionDate||String(setup.createdAt||'').slice(0,10);
     const effectiveSurface=setup.surface||track?.surface||'',effectiveGrip=setup.grip||track?.grip||'';
-     const hay=[getSetupCarName(setup),track?.name,setup.sharedTrackName,effectiveSurface,effectiveGrip,setup.weather,setup.goal,setup.notes,setup.frontTires,setup.rearTires,setup.testedChanges,setup.testConclusion,setup.nextTest,setup.sharedBy,setup.isShared?'partagé':''].join(' ').toLocaleLowerCase('fr');
-    return (!query||hay.includes(query))&&(!carFilter||setup.carId===carFilter)&&(!trackFilter||setup.trackId===trackFilter)&&(!surfaceFilter||effectiveSurface===surfaceFilter)&&(!gripFilter||effectiveGrip===gripFilter)&&(!from||date>=from)&&(!to||date<=to);
+    const isShared=Boolean(setup.isShared||setup.sharedBy);
+    const hay=[getSetupCarName(setup),track?.name,setup.sharedTrackName,effectiveSurface,effectiveGrip,setup.weather,setup.goal,setup.notes,setup.frontTires,setup.rearTires,setup.testedChanges,setup.testConclusion,setup.nextTest,setup.sharedBy,setup.isShared?'partagé':''].join(' ').toLocaleLowerCase('fr');
+    return (mode!=='favorites'||Boolean(setup.favorite))&&(!query||hay.includes(query))&&(!carFilter||setup.carId===carFilter)&&(!trackFilter||setup.trackId===trackFilter)&&(!typeFilter||(typeFilter==='shared'?isShared:!isShared))&&(!surfaceFilter||effectiveSurface===surfaceFilter)&&(!gripFilter||effectiveGrip===gripFilter)&&(!from||date>=from)&&(!to||date<=to);
   }).sort((a,b)=>Number(Boolean(b.favorite))-Number(Boolean(a.favorite))||new Date(b.updatedAt||b.createdAt||0)-new Date(a.updatedAt||a.createdAt||0));
-  if(!filtered.length){const empty=emptyState();empty.querySelector('span:last-child').textContent=state.setups.length?'Aucun setup ne correspond à ces filtres.':'Ajoute une première fiche pour commencer.';container.append(empty);return;}
+  if(!filtered.length){
+    const empty=emptyState();
+    empty.querySelector('span:last-child').textContent=mode==='favorites'&&!state.setups.some(s=>s.favorite)
+      ?'Aucun favori pour le moment. Appuie sur l’étoile d’une fiche pour la retrouver ici.'
+      :state.setups.length?'Aucun setup ne correspond à ces filtres.':'Ajoute une première fiche pour commencer.';
+    container.append(empty);return;
+  }
   filtered.forEach(setup=>{
-    const car=getCarById(setup.carId),track=getTrackById(setup.trackId),item=document.createElement('article');
+    const track=getTrackById(setup.trackId),item=document.createElement('article');
     item.className='list-item setup-card';
     item.innerHTML=`<div class="setup-card-top"><div class="setup-card-labels"><span class="setup-tag">SETUP</span>${setup.favorite?'<span class="setup-favorite-tag">★ FAVORI</span>':''}</div><span class="setup-date">${escapeHtml(setup.sessionDate||formatDate(setup.createdAt))}</span></div><div class="item-main"><h3>${escapeHtml(setup.setupName||getSetupCarName(setup)||'Voiture inconnue')} <span class="arrow">→</span> ${escapeHtml(track?.name||setup.sharedTrackName||'Piste inconnue')}</h3><p class="item-sub">${escapeHtml(getSetupCarName(setup))} · ${escapeHtml(setup.surface||track?.surface||'Surface non renseignée')} · ${escapeHtml(setup.grip||track?.grip||'Adhérence non renseignée')}</p></div>${setup.photos?.length?`<div class="setup-photo-strip">${setup.photos.slice(0,3).map(photo=>`<img src="${photo}" alt="Photo du setup" loading="lazy">`).join('')}<span>${setup.photos.length} photo(s)</span></div>`:''}<div class="setup-chips">${setup.frontTires||setup.rearTires?`<span>Pneus · ${escapeHtml(setup.frontTires||'—')} / ${escapeHtml(setup.rearTires||'—')}</span>`:''}${setup.lapTime?`<span>⏱ ${escapeHtml(setup.lapTime)}</span>`:''}${setup.rating?`<span>${escapeHtml(setup.rating)}</span>`:''}<span>${(setup.history||[]).length} modification(s)</span></div><div class="item-actions"><button class="button button-soft view-setup" data-id="${escapeHtml(setup.id)}" type="button">Détails</button><button class="button button-soft share-setup" data-id="${escapeHtml(setup.id)}" type="button">Partager</button><button class="button button-soft edit-setup" data-id="${escapeHtml(setup.id)}" type="button">Modifier</button><button class="button button-soft duplicate-setup" data-id="${escapeHtml(setup.id)}" type="button">Dupliquer</button><button class="button button-primary print-setup" data-id="${escapeHtml(setup.id)}" type="button">⇩ PDF</button><button class="button button-quiet favorite-setup" data-id="${escapeHtml(setup.id)}" type="button" aria-label="${setup.favorite?'Retirer des favoris':'Ajouter aux favoris'}" title="${setup.favorite?'Retirer des favoris':'Ajouter aux favoris'}">${setup.favorite?'★':'☆'}</button><button class="button button-quiet danger-action delete-setup" data-id="${escapeHtml(setup.id)}" type="button">Supprimer</button></div>`;
     if(setup.isShared||setup.sharedBy){
@@ -6028,10 +6037,11 @@ function renderSetups() {
 
 function updateSetupFilterOptions(){
   const fill=(id,items,key,label,first)=>{const el=document.getElementById(id);if(!el)return;const current=el.value;el.innerHTML=`<option value="">${first}</option>`+items.map(x=>`<option value="${escapeHtml(x[key])}">${escapeHtml(label(x))}</option>`).join('');if(items.some(x=>String(x[key])===current))el.value=current;};
-  fill('setupCarFilter',state.cars,'id',x=>x.name,'Toutes les voitures');fill('setupTrackFilter',state.tracks,'id',x=>x.name,'Toutes les pistes');
-  const surfaces=[...new Set([...state.tracks.map(t=>t.surface),...state.setups.map(s=>s.surface)].filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fr')),el=document.getElementById('setupSurfaceFilter');
-  if(el){const current=el.value;el.innerHTML='<option value="">Toutes les surfaces</option>'+surfaces.map(s=>`<option>${escapeHtml(s)}</option>`).join('');if(surfaces.includes(current))el.value=current;}
-   const gripEl=document.getElementById('setupGripFilter');if(gripEl){const current=gripEl.value;const grips=[...new Set([...state.tracks.map(t=>t.grip),...state.setups.map(s=>s.grip)].filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fr'));gripEl.innerHTML='<option value="">Toutes les adhérences</option>'+grips.map(g=>`<option value="${escapeHtml(g)}">${escapeHtml(g)}</option>`).join('');if(grips.includes(current))gripEl.value=current;}
+  ['setupCarFilter','setupLibraryCarFilter'].forEach(id=>fill(id,state.cars,'id',x=>x.name,'Toutes les voitures'));['setupTrackFilter','setupLibraryTrackFilter'].forEach(id=>fill(id,state.tracks,'id',x=>x.name,'Toutes les pistes'));
+  const surfaces=[...new Set([...state.tracks.map(t=>t.surface),...state.setups.map(s=>s.surface)].filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fr'));
+  ['setupSurfaceFilter','setupLibrarySurfaceFilter'].forEach(id=>{const el=document.getElementById(id);if(el){const current=el.value;el.innerHTML='<option value="">Toutes les surfaces</option>'+surfaces.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');if(surfaces.includes(current))el.value=current;}});
+  const grips=[...new Set([...state.tracks.map(t=>t.grip),...state.setups.map(s=>s.grip)].filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fr'));
+  ['setupGripFilter','setupLibraryGripFilter'].forEach(id=>{const el=document.getElementById(id);if(el){const current=el.value;el.innerHTML='<option value="">Toutes les adhérences</option>'+grips.map(g=>`<option value="${escapeHtml(g)}">${escapeHtml(g)}</option>`).join('');if(grips.includes(current))el.value=current;}});
 }
 function updateComparisonOptions(){
   ['compareSetupA','compareSetupB'].forEach(id=>{const el=document.getElementById(id);if(!el)return;const current=el.value;el.innerHTML='<option value="">Choisir un setup…</option>'+state.setups.map(s=>{const car=getCarById(s.carId)||s.sharedCar,track=getTrackById(s.trackId);return `<option value="${escapeHtml(s.id)}">${escapeHtml(s.setupName||car?.name||'Voiture')} — ${escapeHtml(track?.name||'Piste')} — ${escapeHtml(s.sessionDate||formatDate(s.createdAt))}</option>`;}).join('');if(state.setups.some(s=>s.id===current))el.value=current;});
@@ -7075,8 +7085,17 @@ document.getElementById('trackForm').addEventListener('reset', () => { editingTr
 document.getElementById('setupForm').addEventListener('submit', handleSetupSubmit);
 document.getElementById('setupForm').elements.namedItem('carId').addEventListener('change',updateVehicleSpecificFields);
 ['frontDiffType','centerDiffType','rearDiffType','slipperPresence'].forEach(name=>document.getElementById('setupForm').elements.namedItem(name).addEventListener('change',updateVehicleSpecificFields));
-document.getElementById('setupSearch')?.addEventListener('input',renderSetups);
-['setupCarFilter','setupTrackFilter','setupSurfaceFilter','setupGripFilter','setupDateFrom','setupDateTo'].forEach(id=>document.getElementById(id)?.addEventListener('change',renderSetups));
+const setupFilterPairs=[['setupSearch','setupLibrarySearch'],['setupCarFilter','setupLibraryCarFilter'],['setupTrackFilter','setupLibraryTrackFilter'],['setupSurfaceFilter','setupLibrarySurfaceFilter'],['setupGripFilter','setupLibraryGripFilter'],['setupDateFrom','setupLibraryDateFrom'],['setupDateTo','setupLibraryDateTo']];
+setupFilterPairs.forEach(([toolId,libraryId])=>{
+  const tool=document.getElementById(toolId),library=document.getElementById(libraryId);
+  tool?.addEventListener(toolId==='setupSearch'?'input':'change',()=>{if(library)library.value=tool.value;renderSetups();});
+  library?.addEventListener(libraryId==='setupLibrarySearch'?'input':'change',()=>{if(tool)tool.value=library.value;renderSetups();});
+});
+document.getElementById('setupLibraryTypeFilter')?.addEventListener('change',renderSetups);
+document.querySelectorAll('.setup-library-tab').forEach(button=>button.addEventListener('click',()=>{
+  document.querySelectorAll('.setup-library-tab').forEach(tab=>{const active=tab===button;tab.classList.toggle('active',active);tab.setAttribute('aria-pressed',String(active));});
+  renderSetups();
+}));
 document.getElementById('compareSetupsButton')?.addEventListener('click',compareSetups);
 document.getElementById('calculateGearingButton')?.addEventListener('click',calculateGearing);
 document.getElementById('diagnoseSetupButton')?.addEventListener('click',runSetupDiagnosis);
