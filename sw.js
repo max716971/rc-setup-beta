@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rc-setup-beta-v19';
+const CACHE_NAME = 'rc-setup-beta-v20';
 const APP_SHELL = ['./', './index.html', './app.css?v=13', './materials.css?v=4', './app.js?v=8', './materials.js?v=4', './backup.js?v=2', './manifest.webmanifest', './assets/rc-setup-beta-logo.svg?v=2','./assets/rc-setup-beta-180.png?v=3', './icon.svg?v=2'];
 self.addEventListener('install', event => { event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL))); self.skipWaiting(); });
 self.addEventListener('activate', event => { event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key.startsWith('rc-setup-beta-') && key !== CACHE_NAME).map(key => caches.delete(key))))); self.clients.claim(); });
