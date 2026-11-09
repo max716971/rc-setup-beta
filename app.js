@@ -5860,7 +5860,1174 @@ function navigateToTarget(viewName, targetId = '', formId = '') {
   }));
 }
 function setView(viewName, shouldScroll = true) {
-  document.querySelectorAll('.nav-item').forEach((button) => button.addEventListener('click', () => setView(button.dataset.view)));
+  document.querySelectorAll('.nav-item').forEach((button) => button.classList.toggle('active', button.dataset.view === viewName));
+  document.querySelectorAll('.view').forEach((view) => {
+    const isActive = view.id === `${viewName}View`;
+    view.hidden = !isActive;
+    view.classList.toggle('active', isActive);
+  });
+  if(viewName==='tools'){populateMaintenanceCars();}
+  if (shouldScroll) window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+function emptyState() { return emptyStateTemplate.content.cloneNode(true); }
+
+function renderDashboard() {
+  document.getElementById('carCount').textContent = state.cars.length;
+  document.getElementById('trackCount').textContent = state.tracks.length;
+  document.getElementById('setupCount').textContent = state.setups.length;
+  const nudge = document.getElementById('homeNudge');
+  if (nudge) {
+    const title = document.getElementById('homeNudgeTitle');
+    const message = document.getElementById('homeNudgeText');
+    const action = document.getElementById('homeNudgeAction');
+    const icon = document.getElementById('homeNudgeIcon');
+    let nextView = 'cars', nextForm = '';
+    if (!state.cars.length) {
+      title.textContent = 'Commence par ton garage';
+      message.textContent = 'Ajoute ta première voiture pour organiser ses équipements et ses réglages.';
+      action.textContent = 'Ajouter une voiture →';
+      icon.textContent = '🚗';
+      nextView = 'cars'; nextForm = 'carForm';
+    } else if (!state.setups.length) {
+      title.textContent = 'Ta première fiche de réglages';
+      message.textContent = 'Ton garage est prêt. Crée un setup pour garder une trace de ta configuration.';
+      action.textContent = 'Créer un setup →';
+      icon.textContent = '⚙️';
+      nextView = 'setups'; nextForm = 'setupForm';
+    } else {
+      title.textContent = 'Ton atelier est en route';
+      message.textContent = state.setups.length + ' fiche' + (state.setups.length > 1 ? 's' : '') + ' enregistrée' + (state.setups.length > 1 ? 's' : '') + '. Continue à noter tes essais pour suivre tes progrès.';
+      action.textContent = 'Voir mes setups →';
+      icon.textContent = '🏁';
+      nextView = 'setups';
+    }
+    action.onclick = () => {
+      setView(nextView);
+      if (nextForm) {
+        const form = document.getElementById(nextForm);
+        if (form) { form.classList.remove('hidden'); form.scrollIntoView({behavior:'smooth',block:'start'}); }
+      }
+    };
+  }
+  const container = document.getElementById('recentSetups');
+  container.replaceChildren();
+  const recent = [...state.setups].sort((a,b)=>new Date(b.updatedAt||b.createdAt||0)-new Date(a.updatedAt||a.createdAt||0)).slice(0,4);
+  if (!recent.length) container.append(emptyState());
+  recent.forEach(setup => {
+    const car=getCarById(setup.carId),track=getTrackById(setup.trackId),item=document.createElement('article');
+    item.className='list-item setup-list-item';
+    item.innerHTML=`<div class="item-avatar">⚙</div><div class="item-main"><h3>${escapeHtml(setup.setupName||getSetupCarName(setup)||'Voiture inconnue')} <span class="arrow">→</span> ${escapeHtml(track?.name||setup.sharedTrackName||'Piste inconnue')}</h3><p class="item-sub">${escapeHtml(setup.weather||'Conditions non renseignées')} · ${escapeHtml(setup.temperature||'Température —')}</p></div><button class="icon-button view-setup" data-id="${escapeHtml(setup.id)}" aria-label="Voir le setup" type="button">↗</button>`;
+    if(setup.isShared||setup.sharedBy){
+      item.classList.add('shared-setup-card');
+      const tag=item.querySelector('.setup-tag');
+      if(tag){tag.classList.add('shared-setup-tag');tag.textContent='↗ PARTAGÉ · '+(setup.sharedBy||'Pilote inconnu');}
+      const owner=document.createElement('p');owner.className='shared-setup-owner';owner.textContent='Propriétaire : '+(setup.sharedBy||'Pilote inconnu');
+      item.querySelector('.item-main')?.append(owner);
+    }
+    container.append(item);
+  });
+  container.querySelectorAll('.view-setup').forEach(button=>button.addEventListener('click',()=>showSetup(button.dataset.id)));
+  renderPerformanceTrend();
+}
+
+function carEquipmentMarkup(car) {
+  const fields=[['Moteur','engineEquipment'],['Variateur / ESC','escEquipment'],['Servo','servoEquipment']];
+  const setups=state.setups.filter(setup=>setup.carId===car.id).sort((a,b)=>new Date(b.updatedAt||b.createdAt||0)-new Date(a.updatedAt||a.createdAt||0));
+  const history=Array.isArray(car.partsHistory)?[...car.partsHistory].sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))):[];
+  const photos=Array.isArray(car.photos)?car.photos.slice(0,3):[];
+  const evolution=[...setups].sort((a,b)=>new Date(a.sessionDate||a.createdAt||0)-new Date(b.sessionDate||b.createdAt||0));
+  const evolutionMarkup=evolution.length?'<section class="car-detail-section car-setup-evolution"><h4>Évolution des réglages</h4><p class="item-sub">Chronologie des séances et principales différences par rapport au setup précédent.</p><ol>'+evolution.map((setup,index)=>{const previous=evolution[index-1],diffs=previous?getSetupVersionDiffs(previous,setup):[];return '<li><div><strong>'+escapeHtml(setup.setupName||'Setup')+'</strong><small>'+escapeHtml(setup.sessionDate||formatDate(setup.createdAt))+' · '+escapeHtml(getTrackById(setup.trackId)?.name||setup.sharedTrackName||'Piste non renseignée')+' · '+escapeHtml(setup.grip||getTrackById(setup.trackId)?.grip||setup.sharedTrackGrip||'Grip non renseigné')+'</small></div>'+(setup.lapTime?'<b class="evolution-laptime">⏱ '+escapeHtml(setup.lapTime)+'</b>':'')+(previous?'<p>'+(diffs.length?diffs.slice(0,4).map(diff=>'<span>'+escapeHtml(diff.label)+': '+escapeHtml(diff.from)+' → '+escapeHtml(diff.to)+'</span>').join(' · '):'Aucun changement de paramètre détecté')+'</p>':'<p>Premier setup enregistré pour cette voiture.</p>')+'<button type="button" class="text-button open-car-setup" data-id="'+escapeHtml(setup.id)+'">Ouvrir cette fiche →</button></li>';}).join('')+'</ol></section>':'';
+  return `<div class="car-detail-grid"><section><h4>Équipements</h4><dl class="car-equipment-list">${fields.map(([label,key])=>`<div><dt>${label}</dt><dd>${escapeHtml(car[key]||'Non renseigné')}</dd></div>`).join('')}</dl><p class="item-sub">${escapeHtml(car.type||'Type non renseigné')} · ${escapeHtml(car.scale||'Échelle non renseignée')} · ${escapeHtml(car.drive||'Transmission non renseignée')}</p></section><section><h4>Setups associés (${setups.length})</h4>${setups.length? `<ul class="car-setup-links">${setups.map(setup=>`<li><button type="button" class="text-button open-car-setup" data-id="${escapeHtml(setup.id)}">${escapeHtml(setup.setupName||setup.sessionDate||'Setup')} — ${escapeHtml(getTrackById(setup.trackId)?.name||setup.sharedTrackName||'Piste non renseignée')}</button></li>`).join('')}</ul>`:'<p class="item-sub">Aucun setup associé pour le moment.</p>'}</section></div>${evolutionMarkup}<section class="car-detail-section"><h4>Photos de la voiture (${photos.length}/3)</h4>${photos.length?`<div class="car-detail-photos">${photos.map((photo,index)=>`<a href="${photo}" target="_blank" rel="noopener"><img src="${photo}" alt="Photo ${index+1} de ${escapeHtml(car.name)}" loading="lazy"></a>`).join('')}</div>`:'<p class="item-sub">Ajoute jusqu’à trois photos depuis Modifier.</p>'}</section><section class="car-detail-section"><h4>Historique</h4><p class="item-sub">Voiture créée le ${escapeHtml(formatDate(car.createdAt))}</p>${history.length?'<ol class="car-parts-history">'+history.map(entry=>'<li><strong>'+escapeHtml(entry.action||'Événement')+'</strong><span>'+escapeHtml(entry.date||'Date inconnue')+'</span>'+(entry.notes||entry.part?'<p>'+escapeHtml(entry.notes||entry.part)+'</p>':'')+'</li>').join('')+'</ol>':'<p class="item-sub">Aucun autre événement enregistré.</p>'}</section></div>`;
+}
+function renderCars() {
+  const container = document.getElementById('carsList');
+  container.replaceChildren();
+  if (!state.cars.length) { container.append(emptyState()); return; }
+  state.cars.forEach((car) => {
+    const item = document.createElement('article');
+    item.className = 'list-item entity-card car-entity-card';
+    const setups=state.setups.filter(setup=>setup.carId===car.id).length;
+    const itemType=car.type?escapeHtml(car.type):'Type non renseigné';
+    const firstPhoto=Array.isArray(car.photos)&&car.photos[0]?car.photos[0]:'';
+    item.innerHTML = `<div class="${firstPhoto?'car-avatar-photo':'item-avatar car-avatar'}">${firstPhoto?`<img src="${escapeHtml(firstPhoto)}" alt="Photo de ${escapeHtml(car.name)}" loading="lazy">`:'🚗'}</div><div class="item-main"><h3>${escapeHtml(car.name)}</h3><p class="item-sub">${escapeHtml(car.brand || 'Marque / modèle non renseigné')} · ${escapeHtml(car.scale || 'Échelle non renseignée')} · ${escapeHtml(car.drive || 'Transmission non renseignée')} · ${itemType}</p><p class="item-detail">Créée le ${escapeHtml(formatDate(car.createdAt))} · ${setups} setup(s) associé(s) · ${Array.isArray(car.photos)?Math.min(3,car.photos.length):0}/3 photos</p>${car.notes ? `<p class="item-detail">${escapeHtml(car.notes)}</p>` : ''}<div class="car-card-actions"><button class="button button-soft view-car-details" data-id="${escapeHtml(car.id)}" type="button" aria-expanded="false">Fiche détaillée</button><button class="button button-soft edit-car" data-id="${escapeHtml(car.id)}" type="button">Modifier</button><button class="button button-quiet danger-action delete-car" data-id="${escapeHtml(car.id)}" type="button">Supprimer</button></div><div class="car-detail-panel hidden" id="car-detail-${escapeHtml(car.id)}">${carEquipmentMarkup(car)}</div></div>`;
+    container.append(item);
+  });
+  container.querySelectorAll('.delete-car').forEach((button) => button.addEventListener('click', () => removeCar(button.dataset.id)));
+  container.querySelectorAll('.edit-car').forEach((button) => button.addEventListener('click', () => openCarEditor(button.dataset.id)));
+  container.querySelectorAll('.view-car-details').forEach(button=>button.addEventListener('click',()=>{
+    const panel=document.getElementById('car-detail-'+button.dataset.id);if(!panel)return;
+    const opening=panel.classList.contains('hidden');panel.classList.toggle('hidden',!opening);button.setAttribute('aria-expanded',String(opening));button.textContent=opening?'Masquer la fiche':'Fiche détaillée';
+  }));
+  container.querySelectorAll('.open-car-setup').forEach(button=>button.addEventListener('click',()=>showSetup(button.dataset.id)));
+}
+
+function renderTracks() {
+  const container = document.getElementById('tracksList');
+  container.replaceChildren();
+  if (!state.tracks.length) { container.append(emptyState()); return; }
+  state.tracks.forEach((track) => {
+    const item = document.createElement('article');
+    item.className = 'list-item entity-card track-entity-card';
+    item.innerHTML = `<div class="item-avatar track-avatar">🏁</div><div class="item-main"><h3>${escapeHtml(track.name)}</h3><p class="item-sub">${escapeHtml(track.surface || 'Surface non renseignée')} ${track.grip ? `· Adhérence ${escapeHtml(track.grip)}` : ''} ${track.type ? `· ${escapeHtml(track.type)}` : ''} ${track.location ? `· ${escapeHtml(track.location)}` : ''}</p>${track.details ? `<p class="item-detail">${escapeHtml(track.details)}</p>` : ''}</div><div class="item-actions"><button class="button button-soft edit-track" data-id="${escapeHtml(track.id)}" type="button">Modifier</button><button class="icon-button danger-action delete-track" data-id="${escapeHtml(track.id)}" aria-label="Supprimer ${escapeHtml(track.name)}" type="button">×</button></div>`;
+    container.append(item);
+  });
+  container.querySelectorAll('.edit-track').forEach((button) => button.addEventListener('click', () => openTrackEditor(button.dataset.id)));
+  container.querySelectorAll('.delete-track').forEach((button) => button.addEventListener('click', () => removeTrack(button.dataset.id)));
+}
+
+function renderSetups() {
+  const container=document.getElementById('setupsList');container.replaceChildren();
+  updateSetupFilterOptions();updateComparisonOptions();
+  const query=(document.getElementById('setupSearch')?.value||'').trim().toLocaleLowerCase('fr');
+  const carFilter=document.getElementById('setupCarFilter')?.value||'',trackFilter=document.getElementById('setupTrackFilter')?.value||'';
+  const surfaceFilter=document.getElementById('setupSurfaceFilter')?.value||'',gripFilter=document.getElementById('setupGripFilter')?.value||'';
+  const from=document.getElementById('setupDateFrom')?.value||'',to=document.getElementById('setupDateTo')?.value||'';
+  const filtered=[...state.setups].filter(setup=>{
+    const car=getCarById(setup.carId),track=getTrackById(setup.trackId),date=setup.sessionDate||String(setup.createdAt||'').slice(0,10);
+    const effectiveSurface=setup.surface||track?.surface||'',effectiveGrip=setup.grip||track?.grip||'';
+     const hay=[getSetupCarName(setup),track?.name,setup.sharedTrackName,effectiveSurface,effectiveGrip,setup.weather,setup.goal,setup.notes,setup.frontTires,setup.rearTires,setup.testedChanges,setup.testConclusion,setup.nextTest,setup.sharedBy,setup.isShared?'partagé':''].join(' ').toLocaleLowerCase('fr');
+    return (!query||hay.includes(query))&&(!carFilter||setup.carId===carFilter)&&(!trackFilter||setup.trackId===trackFilter)&&(!surfaceFilter||effectiveSurface===surfaceFilter)&&(!gripFilter||effectiveGrip===gripFilter)&&(!from||date>=from)&&(!to||date<=to);
+  }).sort((a,b)=>Number(Boolean(b.favorite))-Number(Boolean(a.favorite))||new Date(b.updatedAt||b.createdAt||0)-new Date(a.updatedAt||a.createdAt||0));
+  if(!filtered.length){const empty=emptyState();empty.querySelector('span:last-child').textContent=state.setups.length?'Aucun setup ne correspond à ces filtres.':'Ajoute une première fiche pour commencer.';container.append(empty);return;}
+  filtered.forEach(setup=>{
+    const car=getCarById(setup.carId),track=getTrackById(setup.trackId),item=document.createElement('article');
+    item.className='list-item setup-card';
+    item.innerHTML=`<div class="setup-card-top"><span class="setup-tag">${setup.favorite?'★ FAVORI':'SETUP'}</span><span class="setup-date">${escapeHtml(setup.sessionDate||formatDate(setup.createdAt))}</span></div><div class="item-main"><h3>${escapeHtml(setup.setupName||getSetupCarName(setup)||'Voiture inconnue')} <span class="arrow">→</span> ${escapeHtml(track?.name||setup.sharedTrackName||'Piste inconnue')}</h3><p class="item-sub">${escapeHtml(getSetupCarName(setup))} · ${escapeHtml(setup.surface||track?.surface||'Surface non renseignée')} · ${escapeHtml(setup.grip||track?.grip||'Adhérence non renseignée')}</p></div>${setup.photos?.length?`<div class="setup-photo-strip">${setup.photos.slice(0,3).map(photo=>`<img src="${photo}" alt="Photo du setup" loading="lazy">`).join('')}<span>${setup.photos.length} photo(s)</span></div>`:''}<div class="setup-chips">${setup.frontTires||setup.rearTires?`<span>Pneus · ${escapeHtml(setup.frontTires||'—')} / ${escapeHtml(setup.rearTires||'—')}</span>`:''}${setup.lapTime?`<span>⏱ ${escapeHtml(setup.lapTime)}</span>`:''}${setup.rating?`<span>${escapeHtml(setup.rating)}</span>`:''}<span>${(setup.history||[]).length} modification(s)</span></div><div class="item-actions"><button class="button button-soft view-setup" data-id="${escapeHtml(setup.id)}" type="button">Détails</button><button class="button button-soft share-setup" data-id="${escapeHtml(setup.id)}" type="button">Partager</button><button class="button button-soft edit-setup" data-id="${escapeHtml(setup.id)}" type="button">Modifier</button><button class="button button-soft duplicate-setup" data-id="${escapeHtml(setup.id)}" type="button">Dupliquer</button><button class="button button-primary print-setup" data-id="${escapeHtml(setup.id)}" type="button">⇩ PDF</button><button class="button button-quiet favorite-setup" data-id="${escapeHtml(setup.id)}" type="button" aria-label="${setup.favorite?'Retirer des favoris':'Ajouter aux favoris'}" title="${setup.favorite?'Retirer des favoris':'Ajouter aux favoris'}">${setup.favorite?'★':'☆'}</button><button class="button button-quiet danger-action delete-setup" data-id="${escapeHtml(setup.id)}" type="button">Supprimer</button></div>`;
+    if(setup.isShared||setup.sharedBy){
+      item.classList.add('shared-setup-card');
+      const tag=item.querySelector('.setup-tag');
+      if(tag){tag.classList.add('shared-setup-tag');tag.textContent='↗ PARTAGÉ · '+(setup.sharedBy||'Pilote inconnu');}
+      const owner=document.createElement('p');owner.className='shared-setup-owner';owner.textContent='Propriétaire : '+(setup.sharedBy||'Pilote inconnu');
+      item.querySelector('.item-main')?.append(owner);
+    }
+    container.append(item);
+  });
+  container.querySelectorAll('.view-setup').forEach(b=>b.addEventListener('click',()=>showSetup(b.dataset.id)));
+  container.querySelectorAll('.share-setup').forEach(b=>b.addEventListener('click',()=>shareSetupByLink(b.dataset.id)));
+  container.querySelectorAll('.edit-setup').forEach(b=>b.addEventListener('click',()=>openSetupEditor(b.dataset.id)));
+  container.querySelectorAll('.duplicate-setup').forEach(b=>b.addEventListener('click',()=>openSetupEditor(b.dataset.id,true)));
+  container.querySelectorAll('.print-setup').forEach(b=>b.addEventListener('click',()=>{showSetup(b.dataset.id);printSetupDetails();}));
+  container.querySelectorAll('.favorite-setup').forEach(b=>b.addEventListener('click',()=>toggleSetupFavorite(b.dataset.id)));
+  container.querySelectorAll('.delete-setup').forEach(b=>b.addEventListener('click',()=>removeSetup(b.dataset.id)));
+}
+
+function updateSetupFilterOptions(){
+  const fill=(id,items,key,label,first)=>{const el=document.getElementById(id);if(!el)return;const current=el.value;el.innerHTML=`<option value="">${first}</option>`+items.map(x=>`<option value="${escapeHtml(x[key])}">${escapeHtml(label(x))}</option>`).join('');if(items.some(x=>String(x[key])===current))el.value=current;};
+  fill('setupCarFilter',state.cars,'id',x=>x.name,'Toutes les voitures');fill('setupTrackFilter',state.tracks,'id',x=>x.name,'Toutes les pistes');
+  const surfaces=[...new Set([...state.tracks.map(t=>t.surface),...state.setups.map(s=>s.surface)].filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fr')),el=document.getElementById('setupSurfaceFilter');
+  if(el){const current=el.value;el.innerHTML='<option value="">Toutes les surfaces</option>'+surfaces.map(s=>`<option>${escapeHtml(s)}</option>`).join('');if(surfaces.includes(current))el.value=current;}
+   const gripEl=document.getElementById('setupGripFilter');if(gripEl){const current=gripEl.value;const grips=[...new Set([...state.tracks.map(t=>t.grip),...state.setups.map(s=>s.grip)].filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fr'));gripEl.innerHTML='<option value="">Toutes les adhérences</option>'+grips.map(g=>`<option value="${escapeHtml(g)}">${escapeHtml(g)}</option>`).join('');if(grips.includes(current))gripEl.value=current;}
+}
+function updateComparisonOptions(){
+  ['compareSetupA','compareSetupB'].forEach(id=>{const el=document.getElementById(id);if(!el)return;const current=el.value;el.innerHTML='<option value="">Choisir un setup…</option>'+state.setups.map(s=>{const car=getCarById(s.carId)||s.sharedCar,track=getTrackById(s.trackId);return `<option value="${escapeHtml(s.id)}">${escapeHtml(s.setupName||car?.name||'Voiture')} — ${escapeHtml(track?.name||'Piste')} — ${escapeHtml(s.sessionDate||formatDate(s.createdAt))}</option>`;}).join('');if(state.setups.some(s=>s.id===current))el.value=current;});
+}
+function toggleSetupFavorite(id){const setup=state.setups.find(s=>s.id===id);if(!setup)return;const previous={...setup};setup.favorite=!setup.favorite;setup.updatedAt=new Date().toISOString();if(saveState()){renderAll();showToast(setup.favorite?'Ajouté aux favoris.':'Retiré des favoris.');}else Object.assign(setup,previous);}
+function restoreSetupVersion(setupId,historyIndex){
+  const index=state.setups.findIndex(s=>s.id===setupId);if(index<0)return;
+  const current=state.setups[index],history=[...(current.history||[])],entry=history[historyIndex];
+  if(!entry?.data||!confirm('Restaurer cette ancienne version ? La configuration actuelle sera conservée dans l’historique.'))return;
+  const now=new Date().toISOString();
+  history.push({savedAt:now,data:{...current,photos:[...(current.photos||[])],history:[]}});
+  state.setups[index]={...entry.data,id:current.id,createdAt:current.createdAt,updatedAt:now,history:history.slice(-20)};
+  if(saveState()){const dialog=document.getElementById('setupDialog');if(dialog.open)dialog.close();renderAll();showSetup(setupId);showToast('Ancienne version restaurée.');}else state.setups[index]=current;
+}
+
+function openSetupEditor(id,duplicate=false){
+  const source=state.setups.find(s=>s.id===id);if(!source)return;const form=document.getElementById('setupForm');skipSetupReset=true;form.dataset.preserveOnReset='true';form.reset();
+  editingSetupId=duplicate?null:id;setupDraftSource=duplicate?source:null;
+  for(const name of ['carId','trackId',...SETUP_FIELDS]){const field=form.elements.namedItem(name);if(field)field.value=source[name]??'';}
+  form.elements.namedItem('setupName').value=duplicate?`${source.setupName||getCarById(source.carId)?.name||'Setup'} — copie`:(source.setupName||'');
+  pendingPhotos=[...(source.photos||[])];renderPhotoPreviews();form.querySelector('button[type="submit"]').textContent=duplicate?'Enregistrer la copie':'Enregistrer les modifications';
+  form.classList.remove('hidden');setView('setups');form.scrollIntoView({behavior:'smooth',block:'start'});updateVehicleSpecificFields();showToast(duplicate?'Copie préparée : modifie-la puis enregistre.':'Modification du setup.');
+}
+function updateVehicleSpecificFields(){
+  const form=document.getElementById('setupForm'),car=getCarById(form.elements.namedItem('carId')?.value);
+  const count=car?getCarDifferentialCount(car):0;
+  const available=count===1?['rear']:count===2?['front','rear']:count===3?['front','center','rear']:[];
+  ['front','center','rear'].forEach(position=>{
+    const card=form.querySelector('.transmission-diff-'+position);
+    const enabled=available.includes(position);
+    if(card)card.classList.toggle('vehicle-field-hidden',!enabled);
+    const typeField=form.elements.namedItem(position+'DiffType');
+    if(!enabled&&typeField)typeField.value='Absent';
+    const type=String(typeField?.value||'').toLowerCase();
+    form.querySelectorAll('.'+position+'-diff-gear-field').forEach(label=>label.classList.toggle('vehicle-field-hidden',type!=='à pignons'));
+    form.querySelectorAll('.'+position+'-diff-ball-field').forEach(label=>label.classList.toggle('vehicle-field-hidden',type!=='à billes'));
+  });
+  const slipperPresence=String(form.elements.namedItem('slipperPresence')?.value||'').toLowerCase();
+  form.querySelectorAll('.slipper-setting-field').forEach(label=>label.classList.toggle('vehicle-field-hidden',slipperPresence!=='présent'));
+  const hint=document.getElementById('vehicleSetupHint');
+  if(hint)hint.textContent=car?[car.brand||'',car.name,car.drive||'architecture non précisée'].filter(Boolean).join(' · ')+' · '+count+' différentiel'+(count>1?'s':'')+' configuré'+(count>1?'s':'')+'. Modifiable dans le Garage.':'Sélectionne une voiture pour afficher ses différentiels.';
+}
+function parseLapTime(value){const text=String(value||'').trim().replace(',','.');if(!text)return null;if(text.includes(':')){const p=text.split(':');if(p.length!==2)return null;const minutes=Number(p[0]),seconds=Number(p[1]);if(!Number.isInteger(minutes)||minutes<0||!Number.isFinite(seconds)||seconds<0||seconds>=60)return null;const total=minutes*60+seconds;return total>0?total:null;}const n=Number(text);return Number.isFinite(n)&&n>0?n:null;}
+function renderPerformanceTrend(){
+  const root=document.getElementById('performanceTrend');if(!root)return;
+  const selectedTrack=document.getElementById('performanceTrackFilter')?.value||'';
+  const tracks=[...new Map(state.setups.filter(s=>s.trackId&&getTrackById(s.trackId)).map(s=>[s.trackId,getTrackById(s.trackId)])).values()].sort((a,b)=>a.name.localeCompare(b.name,'fr'));
+  const options='<option value="">Toutes les pistes</option>'+tracks.map(track=>`<option value="${escapeHtml(track.id)}" ${track.id===selectedTrack?'selected':''}>${escapeHtml(track.name)}</option>`).join('');
+  const samples=state.setups.filter(s=>parseLapTime(s.lapTime)!==null&&(!selectedTrack||s.trackId===selectedTrack)).sort((a,b)=>new Date(a.sessionDate||a.createdAt)-new Date(b.sessionDate||b.createdAt)).slice(-10);
+  if(!samples.length){root.innerHTML='<label class="trend-filter-label" for="performanceTrackFilter">Piste<select id="performanceTrackFilter">'+options+'</select></label><p class="item-sub">'+(selectedTrack?'Aucun chrono enregistré sur cette piste.':'Renseigne un meilleur temps dans tes setups pour afficher leur évolution.')+'</p>';return;}
+  const values=samples.map(s=>parseLapTime(s.lapTime)),best=Math.min(...values),worst=Math.max(...values);
+  root.innerHTML='<label class="trend-filter-label" for="performanceTrackFilter">Piste<select id="performanceTrackFilter">'+options+'</select></label><div class="trend-chart">'+samples.map((s,i)=>{const v=values[i],height=worst===best?75:Math.max(18,Math.round(100-(v-best)/(worst-best)*72));return `<div class="trend-column" title="${escapeHtml(getCarById(s.carId)?.name||'Voiture')} · ${escapeHtml(s.setupName||'Setup sans nom')} · ${escapeHtml(s.lapTime)}"><span>${escapeHtml(s.lapTime)}</span><i style="height:${height}%"></i><small>${escapeHtml((s.sessionDate||s.createdAt||'').slice(0,10))}</small></div>`;}).join('')+'</div><div class="trend-details">'+samples.slice().reverse().map(s=>`<div class="trend-detail-row"><span><strong>${escapeHtml(s.setupName||'Setup sans nom')}</strong><small>${escapeHtml(getTrackById(s.trackId)?.name||'Piste non renseignée')} · ${escapeHtml((s.sessionDate||s.createdAt||'').slice(0,10))}</small></span><strong>${escapeHtml(s.lapTime)}</strong></div>`).join('')+'</div><p class="item-sub">Meilleur temps enregistré : <strong>'+escapeHtml(samples[values.indexOf(best)].lapTime)+'</strong> · '+samples.length+' sessions affichées</p>';
+  root.querySelector('#performanceTrackFilter')?.addEventListener('change',renderPerformanceTrend);
+}
+function printSetupDetails(){
+  const source=document.getElementById('setupDetails');
+  if(!source)return;
+  const printable=source.cloneNode(true);
+  printable.querySelectorAll('img').forEach(image=>image.loading='eager');
+  printable.querySelectorAll('.item-actions,.restore-version,.button,.toast,.pdf-action-banner').forEach(node=>node.remove());
+  const heading=printable.querySelector('h2')?.textContent?.trim()||'Fiche RC SETUP';
+  const subtitle=printable.querySelector('.dialog-subtitle')?.textContent?.trim()||'Fiche de réglages et de suivi';
+  const isComparison=printable.querySelector('.kicker')?.textContent?.includes('COMPARAISON');
+  const sections=[...printable.querySelectorAll('.detail-group')];
+  const sectionCount=sections.length;
+  const filledCount=sections.reduce((sum,section)=>sum+section.querySelectorAll('dl>div,.compare-row:not(.compare-head)').length,0);
+  const dateLabel=new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'});
+  const meta=subtitle.split('·').map(value=>value.trim()).filter(Boolean);
+  const sectionMarkup=sections.map((section,index)=>{
+    const clone=section.cloneNode(true);
+    // Ne pas retrier les champs : la fiche Setup définit déjà l'ordre exact.
+    // Les six paramètres avant restent groupés, puis les six paramètres arrière.
+    clone.classList.add('print-section');
+    clone.dataset.section=String(index+1).padStart(2,'0');
+    if(clone.querySelector('.setup-gallery'))clone.classList.add('print-photo-section');
+    return clone.outerHTML;
+  }).join('');
+  const setupForPrint=isComparison?null:state.setups.find(item=>item.id===currentDetailSetupId);
+  const geoFields=[
+    ['Carrossage avant',setupForPrint?.frontCamber],['Carrossage arrière',setupForPrint?.rearCamber],
+    ['Pincement / ouverture avant',setupForPrint?.frontToe],['Pincement / ouverture arrière',setupForPrint?.rearToe],
+    ['Largeur de voie avant',setupForPrint?.frontTrackWidth?setupForPrint.frontTrackWidth+' mm':''],['Largeur de voie arrière',setupForPrint?.rearTrackWidth?setupForPrint.rearTrackWidth+' mm':''],
+    ['Chasse avant',setupForPrint?.frontCaster],['Ackermann',setupForPrint?.ackermann],
+    ['Amortisseurs avant · tour',setupForPrint?.frontShockTower],['Amortisseurs avant · triangle',setupForPrint?.frontShockPosition],
+    ['Amortisseurs arrière · tour',setupForPrint?.rearShockTower],['Amortisseurs arrière · triangle',setupForPrint?.rearShockPosition],
+    ['Biellette avant · longueur',setupForPrint?.frontLinkLength?setupForPrint.frontLinkLength+' mm':''],['Biellette arrière · longueur',setupForPrint?.rearLinkLength?setupForPrint.rearLinkLength+' mm':''],
+    ['Biellette / triangle avant · position',setupForPrint?.frontArmPosition],['Biellette / triangle arrière · position',setupForPrint?.rearArmPosition]
+  ];
+  const geoRows=geoFields.filter(([,value])=>value!==undefined&&value!==null&&String(value).trim()!=='').map(([label,value])=>'<div><dt>'+escapeHtml(label)+'</dt><dd>'+escapeHtml(value)+'</dd></div>').join('');
+  const geometryPageMarkup=setupForPrint?'<section class="print-geometry-page"><div class="print-page-heading"><span>RC SETUP / DOSSIER TECHNIQUE</span><strong>03 / GÉOMÉTRIE & IMPLANTATION</strong></div><h2>Fiche technique · Géométrie & implantation</h2><div class="print-geometry-layout"><div class="print-geometry-diagram"><svg viewBox="0 0 320 440" role="img" aria-label="Schéma de buggy vu de dessus"><path d="M160 28 L205 65 L220 130 L210 185 L205 270 L225 350 L200 397 L120 397 L95 350 L115 270 L110 185 L100 130 L115 65 Z" fill="#edf1f4" stroke="#526171" stroke-width="3"/><path d="M120 90 L200 90 M112 330 L208 330" stroke="#c8202f" stroke-width="6" stroke-linecap="round"/><path d="M130 100 L190 100 L205 135 L115 135 Z M120 300 L200 300 L190 340 L130 340 Z" fill="#d8e0e7" stroke="#526171" stroke-width="2"/><rect x="83" y="75" width="28" height="76" rx="9" fill="#273340" stroke="#526171" stroke-width="3" transform="rotate(-12 97 113)"/><rect x="209" y="75" width="28" height="76" rx="9" fill="#273340" stroke="#526171" stroke-width="3" transform="rotate(12 223 113)"/><rect x="83" y="290" width="28" height="76" rx="9" fill="#273340" stroke="#526171" stroke-width="3" transform="rotate(12 97 328)"/><rect x="209" y="290" width="28" height="76" rx="9" fill="#273340" stroke="#526171" stroke-width="3" transform="rotate(-12 223 328)"/><path d="M145 70 L160 48 L175 70 M145 355 L160 382 L175 355" fill="none" stroke="#c8202f" stroke-width="2"/><text x="160" y="20" fill="#18212b" text-anchor="middle" font-size="11" font-weight="bold">AVANT</text><text x="160" y="425" fill="#18212b" text-anchor="middle" font-size="11" font-weight="bold">ARRIÈRE</text><text x="160" y="215" fill="#526171" text-anchor="middle" font-size="11">CHÂSSIS</text></svg><p>Schéma indicatif, non à l’échelle. Les valeurs sont celles de ce setup.</p></div><div class="print-geometry-values"><dl>'+(geoRows||'<div><dt>Géométrie</dt><dd>Aucune valeur renseignée dans ce setup.</dd></div>')+'</dl></div></div><p class="print-geometry-note">Les positions de fixation sont indiquées selon les repères du châssis. Vérifie les conventions de mesure du fabricant.</p></section>':'';
+  const intro=printable.querySelector('.kicker')?.textContent?.trim()||'FICHE DE RÉGLAGES';
+  const compareHint=isComparison?'<span class="print-chip">COMPARATIF A / B</span>':'<span class="print-chip">CARNET DE RÉGLAGES · TT 1/10</span>';
+  const styles=String.raw`
+    :root{color-scheme:light;--ink:#18212b;--muted:#66717d;--line:#d9dee3;--soft:#f2f4f5;--accent:#c8202f;--accent-dark:#8f1722}
+    *{box-sizing:border-box}
+    html{background:#e9ecef}
+    body{max-width:980px;margin:24px auto;padding:0 34px 38px;background:#fff;color:var(--ink);font:9.2pt/1.42 Arial,Helvetica,sans-serif}
+    .print-topline{height:7px;margin:0 -34px;background:var(--accent)}
+    .print-masthead{display:flex;justify-content:space-between;align-items:center;padding:18px 0 13px;border-bottom:1px solid var(--line)}
+    .print-brand{display:flex;align-items:center;gap:10px}
+    .print-mark{display:block;width:48px;height:48px;object-fit:cover;border:1px solid #cbd2d9;border-radius:10px}
+    .print-brand small{display:block;color:var(--muted);font-size:7pt;font-weight:700;letter-spacing:2.3px}
+    .print-brand strong{display:block;font-size:17pt;line-height:1;letter-spacing:-.7px}
+    .print-edition{text-align:right;color:var(--muted);font-size:7.5pt;line-height:1.6}
+    .print-edition b{color:var(--ink);letter-spacing:1.1px}
+    .print-hero{position:relative;margin:24px 0 18px;padding:22px 24px 21px;border:0;border-left:7px solid var(--accent);background:#202832;color:#fff;min-height:132px}
+    .print-kicker{display:flex;align-items:center;gap:9px;margin-bottom:12px;color:#ff9aa3;font-size:7.5pt;font-weight:800;letter-spacing:1.6px}
+    .print-chip{display:inline-block;padding:5px 9px;background:#3b4652;color:#ffd9dd;font-size:7pt;letter-spacing:1px}
+    .print-title{margin:0 0 8px;color:#fff;font-size:26pt;line-height:1.06;letter-spacing:-.8px;font-weight:800}
+    .print-subtitle{margin:0;color:#d1d8de;font-size:9pt;letter-spacing:.2px}
+    .print-overview{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin:18px 0 20px}
+    .print-overview-item{min-height:62px;padding:11px 12px;background:#f5f6f7;border:1px solid #e1e5e9;border-top:3px solid var(--accent)}
+    .print-overview-item small{display:block;margin-bottom:6px;color:var(--accent-dark);font-size:6.5pt;font-weight:800;letter-spacing:1.1px;text-transform:uppercase}
+    .print-overview-item strong{display:block;color:#202832;font-size:9pt;line-height:1.3;overflow-wrap:anywhere}
+    .print-section{margin:12px 0;padding:12px 14px;border:1px solid var(--line);border-top:2px solid #333b44;background:#fff;break-inside:avoid;page-break-inside:avoid}
+    .print-section h3{margin:0 0 9px;padding:0 0 8px;border-bottom:1px solid var(--line);font-size:10.5pt;line-height:1.2;color:#202832}
+    .print-section dl{display:grid;grid-template-columns:1fr 1fr;column-gap:22px;margin:0}
+    .print-section dl>div{display:grid;grid-template-columns:minmax(112px,.9fr) minmax(0,1.1fr);gap:8px;align-items:start;padding:5px 0;border-bottom:1px solid #edf0f2;break-inside:avoid}
+    .print-section dt{color:var(--muted);font-size:7.7pt}
+    .print-section dd{margin:0;color:var(--ink);font-size:8pt;font-weight:700;overflow-wrap:anywhere}
+    .print-photo-section{break-inside:auto}
+    .print-cover-summary{display:flex;justify-content:space-between;gap:16px;margin:20px 0 0;padding:15px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);color:var(--muted);font-size:7.5pt;letter-spacing:.3px}
+    .print-cover-summary strong{display:block;margin-bottom:4px;color:var(--accent-dark);font-size:7pt;letter-spacing:1px}
+    .print-page-two{display:block;clear:both;break-before:page!important;page-break-before:always!important;break-inside:auto!important;page-break-inside:auto!important}
+    .print-page-heading{display:flex;justify-content:space-between;margin:0 0 12px;padding:0 0 8px;border-bottom:2px solid #26313b;color:#78838d;font-size:7pt;letter-spacing:1px}
+    .print-page-heading strong{color:#26313b}
+    .setup-gallery,.car-photo-gallery,.car-detail-photos{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin:8px 0}
+    .setup-gallery a{display:block;break-inside:avoid}
+    .setup-gallery img,.car-photo-gallery img,.car-detail-photos img{display:block;width:100%;max-height:190px;aspect-ratio:4/3;object-fit:contain;border:1px solid var(--line);background:#f7f8f9}
+    .print-geometry-page{clear:both;break-before:page!important;page-break-before:always!important;padding-top:2px}
+    .print-geometry-page h2{margin:18px 0 16px;font-size:18pt;color:#202832}
+    .print-geometry-layout{display:grid;grid-template-columns:minmax(190px,.8fr) minmax(0,1.3fr);gap:20px;align-items:start}
+    .print-geometry-diagram{padding:12px;border:1px solid var(--line);background:#f7f8f9;text-align:center}
+    .print-geometry-diagram svg{display:block;width:100%;max-height:370px}
+    .print-geometry-diagram p,.print-geometry-note{color:var(--muted);font-size:7.5pt}
+    .print-geometry-values{padding:10px 14px;border:1px solid var(--line);border-top:3px solid var(--accent)}
+    .print-geometry-values dl{margin:0}
+    .print-geometry-values dl>div{display:grid;grid-template-columns:minmax(100px,.9fr) minmax(0,1.1fr);gap:10px;padding:8px 0;border-bottom:1px solid #edf0f2;break-inside:avoid}
+    .print-geometry-values dt{color:var(--muted);font-size:8pt}
+    .print-geometry-values dd{margin:0;color:var(--ink);font-size:8.5pt;font-weight:700;overflow-wrap:anywhere}
+    .print-geometry-note{margin-top:16px;padding-top:10px;border-top:1px solid var(--line)}
+    .compare-table{width:100%}
+    .compare-row{display:grid;grid-template-columns:1.05fr .9fr .9fr 1.2fr;gap:8px;padding:7px 8px;border-bottom:1px solid var(--line);break-inside:avoid;font-size:8pt}
+    .compare-row:nth-child(odd):not(.compare-head){background:#f6f7f8}
+    .compare-head{background:#252d36;color:#fff;font-weight:800}\n    .compare-change{color:var(--accent-dark);font-weight:800;overflow-wrap:anywhere}
+    .history-entry{padding:6px 0;border-bottom:1px solid var(--line);font-size:8pt}
+    .dialog-subtitle{color:var(--muted)}
+    .print-footer{display:flex;justify-content:space-between;gap:15px;margin-top:22px;padding-top:9px;border-top:1px solid var(--line);color:var(--muted);font-size:7pt}
+    .print-footer strong{color:var(--ink);letter-spacing:.6px}
+    .item-sub,.muted{color:var(--muted)}
+    button,a.button{display:none!important}
+    .preview-close{position:fixed;z-index:9999;top:12px;right:12px;display:inline-flex!important;align-items:center;gap:8px;padding:11px 16px;border:0;border-radius:999px;background:#202832;color:#fff;font:700 14px Arial,sans-serif;box-shadow:0 4px 18px rgba(0,0,0,.2);cursor:pointer}
+    .preview-close .close-x{font-size:20px;line-height:1}
+    @page{size:A4;margin:12mm 13mm 14mm}
+    @media print{
+      html{background:#fff}
+      .preview-close{display:none!important}
+      body{max-width:none;margin:0;padding:0}
+      .print-topline{margin:0 -13mm}
+      .print-page-two{display:block;clear:both;break-before:page!important;page-break-before:always!important;break-inside:auto!important;page-break-inside:auto!important}
+      .print-section{break-inside:auto;page-break-inside:auto}
+      .print-section h3{break-after:avoid;page-break-after:avoid}
+      .print-section dl>div{break-inside:avoid}
+      .print-photo-section{break-inside:avoid}
+      .print-footer{position:fixed;bottom:-8mm;left:0;right:0}
+      *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    }
+    @media(max-width:650px){body{padding:0 16px}.print-overview{grid-template-columns:1fr 1fr}.print-section dl{grid-template-columns:1fr}.compare-row{grid-template-columns:1fr 1fr 1fr 1.2fr}}
+  `;
+  const buggyDiagram='';
+
+  const overview=meta.slice(0,4).map((value,index)=>{
+    const labels=['SURFACE','ADHÉRENCE','MÉTÉO','TEMPÉRATURE'];
+    return '<div class="print-overview-item"><small>'+labels[index]+'</small><strong>'+escapeHtml(value)+'</strong></div>';
+  }).join('');
+  const printWindow=window.open('','_blank');
+  if(!printWindow){showToast('Autorise les fenêtres pop-up pour imprimer la fiche.');return;}
+  printWindow.document.open();
+  printWindow.document.write('<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+escapeHtml(heading)+' — RC SETUP</title><style>'+styles+'</style></head><body><button class="preview-close" type="button" onclick="window.close()" aria-label="Fermer le PDF et revenir à RC SETUP"><span class="close-x" aria-hidden="true">×</span> Retour à RC SETUP</button><div class="print-topline"></div><header class="print-masthead"><div class="print-brand"><img class="print-mark" src="'+new URL('./assets/rc-setup-beta-logo.svg?v=2',location.href).href+'" alt="RC SETUP"><span><small>GARAGE NUMÉRIQUE</small><strong>SETUP.</strong></span></div><div class="print-edition"><b>'+escapeHtml(intro)+'</b><br>ÉDITION DU '+escapeHtml(dateLabel.toUpperCase())+'<br>'+sectionCount+' RUBRIQUES · '+filledCount+' LIGNES DE DONNÉES</div></header><main><section class="print-hero"><div class="print-kicker">'+compareHint+'</div><h1 class="print-title">'+escapeHtml(heading)+'</h1><p class="print-subtitle">'+escapeHtml(subtitle)+'</p></section><div class="print-overview">'+overview+'</div><div class="print-cover-summary"><span><strong>CONTENU DU DOSSIER</strong>'+sectionCount+' rubriques techniques</span><span><strong>DONNÉES RENSEIGNÉES</strong>'+filledCount+' valeurs enregistrées</span><span><strong>ÉDITION</strong>'+escapeHtml(dateLabel)+'</span></div><div class="print-page-two"><div class="print-page-heading"><span>RC SETUP / DOSSIER TECHNIQUE</span><strong>02 / RÉGLAGES & SUIVI</strong></div>'+sectionMarkup+'</div>'+geometryPageMarkup+'</main><footer class="print-footer"><span><strong>RC SETUP</strong> · FICHE TECHNIQUE PERSONNELLE</span><span>Document édité le '+escapeHtml(dateLabel)+'</span></footer></body></html>');
+  printWindow.document.close();
+  printWindow.focus();
+  setTimeout(()=>{printWindow.print();},650);
+}
+function compareSetups(){
+  const a=state.setups.find(s=>s.id===document.getElementById('compareSetupA')?.value),b=state.setups.find(s=>s.id===document.getElementById('compareSetupB')?.value);
+  if(!a||!b){showToast('Sélectionne deux setups à comparer.');return;}if(a.id===b.id){showToast('Choisis deux setups différents.');return;}
+  const carA=getCarById(a.carId)||a.sharedCar||null,carB=getCarById(b.carId)||b.sharedCar||null,trackA=getTrackById(a.trackId),trackB=getTrackById(b.trackId);
+  const fields=[...new Set(SETUP_FIELDS)].filter(k=>String(a[k]??'')!==String(b[k]??'')&&(a[k]||b[k]));
+  const label=k=>k.replace(/([A-Z])/g,' $1').replace(/^./,c=>c.toUpperCase()).replace(/esc/gi,'ESC').replace(/radio/gi,'Radio').replace(/front/gi,'avant').replace(/rear/gi,'arrière');
+  const content=document.getElementById('setupDetails');
+  content.innerHTML=`<div class="pdf-action-banner"><div><strong>Exporter cette comparaison en PDF</strong><span>Fiche A4 avec les différences et les chronos.</span></div><button class="button button-primary pdf-main-button" id="printCompareSetupTop" type="button">⇩ Imprimer / PDF</button></div><span class="kicker">COMPARAISON DE CONFIGURATIONS</span><h2>${escapeHtml(carA?.name||'Voiture')} ↔ ${escapeHtml(carB?.name||'Voiture')}</h2><p class="dialog-subtitle">${escapeHtml(trackA?.name||'Piste')} · ${escapeHtml(a.sessionDate||formatDate(a.createdAt))} <span class="arrow">vs</span> ${escapeHtml(trackB?.name||'Piste')} · ${escapeHtml(b.sessionDate||formatDate(b.createdAt))}</p><section class="detail-group"><h3>Chronos</h3><dl><div><dt>Setup A</dt><dd>${escapeHtml(a.lapTime||'—')}</dd></div><div><dt>Setup B</dt><dd>${escapeHtml(b.lapTime||'—')}</dd></div></dl></section><section class="detail-group"><h3>Réglages différents (${fields.length})</h3>${fields.length?`<div class="compare-table"><div class="compare-row compare-head"><strong>Réglage</strong><strong>Setup A</strong><strong>Setup B</strong></div>${fields.map(k=>{const before=a[k]||'—',after=b[k]||'—';return `<div class="compare-row"><span>${escapeHtml(label(k))}</span><span>${escapeHtml(before)}</span><span>${escapeHtml(after)}</span><strong class="compare-change">${escapeHtml(before)} → ${escapeHtml(after)}</strong></div>`;}).join('')}</div>`:'<p class="item-sub">Les réglages enregistrés sont identiques.</p>'}</section><div class="item-actions detail-actions"><button class="button button-primary" id="printSetupDetails" type="button">Imprimer / PDF</button></div>`;
+  content.querySelector('#printSetupDetails').addEventListener('click',printSetupDetails);
+  content.querySelector('#printCompareSetupTop').addEventListener('click',printSetupDetails);
+  document.getElementById('setupDialog').showModal();
+}
+
+
+
+function parsePositiveNumber(value){const n=Number(String(value||'').replace(',','.'));return Number.isFinite(n)&&n>0?n:null;}
+function calculateGearing(){
+  const pinion=parsePositiveNumber(document.getElementById('calcPinion')?.value),spur=parsePositiveNumber(document.getElementById('calcSpur')?.value),internal=parsePositiveNumber(document.getElementById('calcInternal')?.value),diameter=parsePositiveNumber(document.getElementById('calcDiameter')?.value);
+  const result=document.getElementById('gearingResult');if(!result)return;
+  if(!pinion||!spur){result.textContent='Renseigne le nombre de dents du pignon et de la couronne.';return;}
+  const ratio=spur/pinion,final=internal?ratio*internal:null,rollout=diameter?Math.PI*diameter/ratio:null;
+  result.innerHTML='<strong>Rapport externe : '+ratio.toFixed(3)+'</strong>'+(final?'<br>Rapport total : '+final.toFixed(3):'')+(rollout?'<br>Développement théorique : '+rollout.toFixed(1)+' mm par tour moteur (diamètre de roue renseigné).':'')+'<p class="item-sub">Un rapport externe plus élevé tire plus court. Le rapport total nécessite le rapport interne exact du véhicule.</p>';
+}
+function runSetupDiagnosis(){
+ const symptom=document.getElementById('diagnosisSymptom')?.value;
+ const gripValue=document.getElementById('diagnosisGrip')?.value||'medium';
+ const driveValue=document.getElementById('diagnosisDrive')?.value||'unknown';
+ const carId=document.getElementById('diagnosisCar')?.value||'';
+ const setupId=document.getElementById('diagnosisSetup')?.value||'';
+ const trackId=document.getElementById('diagnosisTrack')?.value||'';
+ const setup=state.setups.find(item=>item.id===setupId)||null;
+ const output=document.getElementById('diagnosisResult');if(!output)return;
+ if(!symptom){output.textContent='Choisis le comportement à corriger pour afficher des pistes de réglage.';return;}
+ const symptomMap={understeer_entry:['understeer','entry'],understeer_mid:['understeer','mid'],understeer_exit:['understeer','exit'],oversteer_entry:['oversteer','entry'],oversteer_mid:['oversteer','mid'],oversteer_exit:['oversteer','exit'],traction:['traction','exit'],instability:['bumpy','all']};
+ const [commonSymptom,phase]=symptomMap[symptom]||['lazy','all'];
+ const severity=document.getElementById('diagnosisSeverity')?.value||'medium';
+ const grip={low:'Faible',medium:'Moyenne',high:'Forte'}[gripValue]||'non renseignée';
+ const drive=setup?undefined:driveValue;
+ const trackOverride=trackId?getTrackById(trackId):null;
+ const data=assistantRecommendations(setup,commonSymptom,phase,{carId:carId||setup?.carId,trackId:trackId||setup?.trackId,grip,drive,severity});
+ assistantToolLastProposal=data.items;
+ const context=['<strong>'+escapeHtml(data.car)+' · '+escapeHtml(data.track)+'</strong>','<span>'+escapeHtml(data.surface)+' · '+escapeHtml(data.grip)+'</span>','<p>'+escapeHtml(data.caution)+'</p>','<small>'+escapeHtml(data.scale)+'</small>'];
+ if(setup){
+  const equipment=[['Pneus AV',setup.frontTires],['Pneus AR',setup.rearTires],['Inserts AV',setup.frontInserts],['Inserts AR',setup.rearInserts],['Ressorts AV / AR',[setup.frontSpring,setup.rearSpring].filter(Boolean).join(' / ')],['Huiles AV / AR',[setup.frontShocks,setup.rearShocks].filter(Boolean).join(' / ')],['Pistons AV / AR',[setup.frontPiston,setup.rearPiston].filter(Boolean).join(' / ')],['Moteur',setup.motor],['Variateur',setup.escModel||setup.esc],['Slipper',setup.slipper]].filter(([,value])=>value);
+  context.push('<div class="assistant-context-block"><b>Équipement du setup</b>'+(equipment.length?'<ul>'+equipment.map(([label,value])=>'<li>'+escapeHtml(label)+' : '+escapeHtml(value)+'</li>').join('')+'</ul>':'<p>Équipement non renseigné.</p>')+'</div>');
+  const feedback=(setup.testProposals||[]).filter(item=>item.status&&item.status!=='À tester').slice(-4);
+  if(feedback.length)context.push('<div class="assistant-context-block"><b>Retours sur ce setup</b><ul>'+feedback.map(item=>'<li>'+escapeHtml(item.symptom)+' · '+escapeHtml(item.status)+'</li>').join('')+'</ul></div>');
+ }
+ output.innerHTML='<div class="assistant-context">'+context.join('')+'</div><div class="diagnosis-proposals">'+data.items.map((item,i)=>'<article class="diagnosis-proposal"><span class="diagnosis-rank">'+(i+1)+'</span><div><strong>'+escapeHtml(item[0])+'</strong><p>'+escapeHtml(item[1])+'</p></div></article>').join('')+'</div><p class="item-sub">Même moteur de diagnostic que dans les détails du setup. Teste une seule modification à la fois et vérifie les effets sur la piste.</p>';
+ const saveButton=document.getElementById('diagnosisSaveProposal');
+ if(saveButton){saveButton.disabled=!setup||!data.items.length;saveButton.textContent=setup?'＋ Enregistrer les pistes dans ce setup':'Sélectionne un setup pour enregistrer les pistes';}
+}
+let assistantToolLastProposal=[];
+function populateAssistantToolSelectors(){
+ const carSelect=document.getElementById('diagnosisCar'),setupSelect=document.getElementById('diagnosisSetup'),trackSelect=document.getElementById('diagnosisTrack');
+ if(!carSelect||!setupSelect||!trackSelect)return;
+ const carValue=carSelect.value,setupValue=setupSelect.value,trackValue=trackSelect.value;
+ carSelect.innerHTML='<option value="">Aucune voiture</option>'+state.cars.map(car=>'<option value="'+escapeHtml(car.id)+'">'+escapeHtml(car.name)+'</option>').join('');
+ if(state.cars.some(car=>car.id===carValue))carSelect.value=carValue;
+ const eligible=state.setups.filter(item=>!carSelect.value||item.carId===carSelect.value);
+ setupSelect.innerHTML='<option value="">Aucun setup (mode libre)</option>'+eligible.map(item=>'<option value="'+escapeHtml(item.id)+'">'+escapeHtml(item.setupName||'Setup')+' · '+escapeHtml(getCarById(item.carId)?.name||item.sharedCar?.name||'Voiture')+' · '+escapeHtml(item.sessionDate||'Date inconnue')+'</option>').join('');
+ if(eligible.some(item=>item.id===setupValue))setupSelect.value=setupValue;
+ trackSelect.innerHTML='<option value="">Piste du setup / non précisée</option>'+state.tracks.map(track=>'<option value="'+escapeHtml(track.id)+'">'+escapeHtml(track.name)+'</option>').join('');
+ if(state.tracks.some(track=>track.id===trackValue))trackSelect.value=trackValue;
+ if(setupSelect.value){
+  const selected=state.setups.find(item=>item.id===setupSelect.value);
+  if(selected){
+   carSelect.value=selected.carId||'';
+   if(!trackSelect.value&&selected.trackId)trackSelect.value=selected.trackId;
+  }
+ }
+ const car=getCarById(carSelect.value);
+ const driveSelect=document.getElementById('diagnosisDrive');
+ if(driveSelect&&car){
+  const raw=String(car.drivetrain||car.driveType||car.transmission||car.drive||'').toLowerCase();
+  driveSelect.value=/4wd|4x4|4 roues/.test(raw)?'4wd':/2wd|2 roues|4x2/.test(raw)?'2wd':'unknown';
+ }
+}
+function saveToolAssistantProposal(){
+ const setupId=document.getElementById('diagnosisSetup')?.value;
+ const setup=state.setups.find(item=>item.id===setupId);
+ if(!setup||!assistantToolLastProposal.length)return;
+ const symptom=document.getElementById('diagnosisSymptom');
+ const phaseMap={understeer_entry:'Entrée',understeer_mid:'Milieu',understeer_exit:'Sortie',oversteer_entry:'Entrée',oversteer_mid:'Milieu',oversteer_exit:'Sortie',traction:'Sortie / motricité',instability:'Général'};
+ setup.testProposals=[...(setup.testProposals||[]),{createdAt:new Date().toISOString(),symptom:symptom.options[symptom.selectedIndex].text,phase:phaseMap[symptom.value]||'Général',items:assistantToolLastProposal.map(item=>({area:item[0],advice:item[1]})),status:'À tester'}].slice(-30);
+ if(!saveState())return;
+ showToast('Pistes enregistrées dans le setup sélectionné.');
+}
+function formatDate(value) {
+  if (!value) return 'Date non précisée';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Date non précisée';
+  return new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }).format(date);
+}
+function populateSelects() {
+  const carSelect = document.querySelector('select[name="carId"]');
+  const trackSelect = document.querySelector('select[name="trackId"]');
+  const selectedCar = carSelect.value;
+  const selectedTrack = trackSelect.value;
+  carSelect.innerHTML = '<option value="">Choisir une voiture</option>' + state.cars.map((car) => `<option value="${escapeHtml(car.id)}" data-drive="${escapeHtml(car.drive||'')}">${escapeHtml(car.name)}</option>`).join('');
+  trackSelect.innerHTML = '<option value="">Choisir une piste</option>' + state.tracks.map((track) => `<option value="${escapeHtml(track.id)}">${escapeHtml(track.name)}</option>`).join('');
+  if (state.cars.some((car) => car.id === selectedCar)) carSelect.value = selectedCar;
+  if (state.tracks.some((track) => track.id === selectedTrack)) trackSelect.value = selectedTrack;
+}
+function renderAll() { renderDashboard(); renderCars(); renderTracks(); renderSetups(); populateSelects(); populateAssistantToolSelectors(); }
+function populateMaintenanceCars(){
+ const select=document.getElementById('maintenanceCar');if(!select)return;
+ const value=select.value;select.innerHTML='<option value="">Choisir une voiture…</option>'+state.cars.map(car=>'<option value="'+escapeHtml(car.id)+'">'+escapeHtml(car.name)+'</option>').join('');
+ if(state.cars.some(car=>car.id===value))select.value=value;
+ renderMaintenanceList();
+}
+function renderMaintenanceList(){
+  const select=document.getElementById('maintenanceCar'),list=document.getElementById('maintenanceList');if(!select||!list)return;
+  const id=select.value;const entries=(state.maintenance||[]).filter(item=>item.carId===id).sort((x,y)=>String(y.date).localeCompare(String(x.date)));
+  list.innerHTML=!id?'<p class="item-sub">Sélectionne une voiture pour consulter son carnet.</p>':!entries.length?'<p class="item-sub">Aucune intervention enregistrée pour cette voiture.</p>':entries.map(item=>{
+    const remaining=Number(item.next||0);
+    const due=item.next?(remaining<=0?'<span class="maintenance-status overdue">À effectuer</span>':remaining<=1?'<span class="maintenance-status soon">Bientôt</span>':'<span class="maintenance-status ok">À jour</span>'):'';
+    return '<article class="maintenance-entry"><div class="maintenance-entry-head"><div><strong>'+escapeHtml(item.part)+'</strong><p>'+escapeHtml(item.workType||'Entretien')+' · '+escapeHtml(formatDate(item.date))+'</p></div>'+due+'</div><p>'+Number(item.sessions||0)+' session(s) depuis l’intervention'+(item.next?' · échéance à '+Number(item.next)+' session(s)':'')+'</p>'+(item.replacedParts?'<p><b>Pièces :</b> '+escapeHtml(item.replacedParts)+'</p>':'')+(item.notes?'<p>'+escapeHtml(item.notes)+'</p>':'')+'<div class="maintenance-entry-actions"><button class="button button-quiet maintenance-delete" data-id="'+escapeHtml(item.id)+'" type="button">Supprimer</button></div></article>';
+  }).join('');
+  list.querySelectorAll('.maintenance-delete').forEach(button=>button.addEventListener('click',()=>{
+    if(!confirm('Supprimer cette intervention du carnet ?'))return;
+    state.maintenance=state.maintenance.filter(item=>item.id!==button.dataset.id);
+    if(saveState())renderMaintenanceList();
+  }));
+}
+function populateBatterySelect(){
+  const select=document.getElementById('batteryLogSelect');if(!select)return;
+  const value=select.value;select.innerHTML='<option value="">Choisir une batterie…</option>'+(state.batteries||[]).map(b=>'<option value="'+escapeHtml(b.id)+'">'+escapeHtml(b.name)+' · '+escapeHtml(b.capacity)+' mAh</option>').join('');
+  const carSelect=document.getElementById('batteryCar');if(carSelect){const selected=carSelect.value;carSelect.innerHTML='<option value="">Aucune voiture associée</option>'+state.cars.map(car=>'<option value="'+escapeHtml(car.id)+'">'+escapeHtml(car.name)+'</option>').join('');if(state.cars.some(car=>car.id===selected))carSelect.value=selected;}
+  if((state.batteries||[]).some(b=>b.id===value))select.value=value;
+}
+function renderBatteries(){
+  const list=document.getElementById('batteryList');if(!list)return;
+  const batteries=Array.isArray(state.batteries)?state.batteries:[];
+  list.innerHTML=!batteries.length?'<p class="item-sub">Aucune batterie enregistrée. Ajoute ta première LiPo ci-dessus.</p>':batteries.map(b=>{
+    const latest=(b.history||[])[0],voltage=b.voltage?Number(b.voltage).toFixed(2)+' V':latest?.voltage?Number(latest.voltage).toFixed(2)+' V':'Non renseignée',cells=Number(b.cells||0);
+    const perCell=b.voltage&&cells?(Number(b.voltage)/cells).toFixed(2)+' V':'';
+    return '<article class="battery-entry"><div class="battery-entry-head"><div><strong>'+escapeHtml(b.name)+'</strong><p>'+escapeHtml(b.brand||'Marque non précisée')+' · '+escapeHtml(b.capacity)+' mAh · '+cells+'S'+(getCarById(b.carId)?' · '+escapeHtml(getCarById(b.carId).name):'')+'</p></div><span class="battery-cycles">'+Number(b.cycles||0)+' cycles</span></div><div class="battery-metrics"><span><small>Tension</small><b>'+voltage+'</b></span><span><small>Par cellule (moy.)</small><b>'+(perCell||'—')+'</b></span><span><small>Connecteur</small><b>'+escapeHtml(b.connector||'—')+'</b></span></div>'+(b.notes?'<p class="item-sub">'+escapeHtml(b.notes)+'</p>':'')+'<details class="battery-history"><summary>Historique ('+(b.history||[]).length+')</summary>'+((b.history||[]).length?(b.history||[]).map(h=>'<p>'+escapeHtml(formatDate(h.date))+' · '+escapeHtml(h.type||'Utilisation')+(h.voltage?' · '+Number(h.voltage).toFixed(2)+' V':'')+(h.cycles?' · +'+Number(h.cycles)+' cycle(s)':'')+(h.notes?' — '+escapeHtml(h.notes):'')+'</p>').join(''):'<p class="item-sub">Aucun événement enregistré.</p>')+'</details><div class="battery-entry-actions"><button class="button button-quiet battery-delete" data-id="'+escapeHtml(b.id)+'" type="button">Supprimer</button></div></article>';
+  }).join('');
+  populateBatterySelect();
+  list.querySelectorAll('.battery-delete').forEach(button=>button.addEventListener('click',()=>{
+    if(!confirm('Supprimer cette batterie et son historique ?'))return;
+    state.batteries=state.batteries.filter(b=>b.id!==button.dataset.id);
+    if(saveState()){renderBatteries();showToast('Batterie supprimée.');}
+  }));
+}
+function handleBatterySubmit(event){
+  event.preventDefault();const form=event.currentTarget,data=new FormData(form);
+  const name=String(data.get('name')||'').trim(),capacity=Number(data.get('capacity')||0),cells=Number(data.get('cells')||0);
+  if(!name||capacity<=0||cells<1)return;
+  const battery={id:uid('battery'),name,brand:String(data.get('brand')||'').trim(),capacity,cells,carId:String(data.get('carId')||''),connector:String(data.get('connector')||'').trim(),cycles:Number(data.get('cycles')||0),voltage:Number(data.get('voltage')||0),notes:String(data.get('notes')||'').trim(),history:[]};
+  state.batteries=Array.isArray(state.batteries)?state.batteries:[];
+  state.batteries.unshift(battery);
+  if(!saveState()){state.batteries.shift();return;}
+  form.elements.namedItem('name').value='';form.elements.namedItem('brand').value='';form.elements.namedItem('carId').value='';form.elements.namedItem('capacity').value='';form.elements.namedItem('cells').value='2';form.elements.namedItem('connector').value='';form.elements.namedItem('cycles').value='0';form.elements.namedItem('voltage').value='';form.elements.namedItem('notes').value='';renderBatteries();showToast('Batterie ajoutée au gestionnaire.');
+}
+function handleBatteryLog(event){
+  event.preventDefault();const battery=state.batteries?.find(b=>b.id===document.getElementById('batteryLogSelect').value);if(!battery)return;
+  const type=document.getElementById('batteryLogType').value,voltage=Number(document.getElementById('batteryLogVoltage').value||0),cycles=Number(document.getElementById('batteryLogCycles').value||0),notes=document.getElementById('batteryLogNotes').value.trim();
+  if(voltage>0)battery.voltage=voltage;
+  battery.cycles=Math.max(0,Number(battery.cycles||0)+cycles);
+  battery.history=Array.isArray(battery.history)?battery.history:[];
+  battery.history.unshift({date:new Date().toISOString().slice(0,10),type,voltage:voltage||null,cycles,notes});
+  if(!saveState())return;
+  document.getElementById('batteryLogSelect').value='';document.getElementById('batteryLogVoltage').value='';document.getElementById('batteryLogCycles').value='0';document.getElementById('batteryLogNotes').value='';renderBatteries();showToast('Événement batterie enregistré.');
+}
+function formValues(form, names) {
+  const data = new FormData(form);
+  return Object.fromEntries(names.map((name) => [name, String(data.get(name) || '').trim()]));
+}
+
+function getCatalogFilters() {
+  return {
+    brand: document.getElementById('carCatalogBrandPicker')?.dataset.selectedBrand || '',
+    drive: document.getElementById('carCatalogDrive')?.value || '',
+    era: document.getElementById('carCatalogEra')?.value || '',
+    query: (document.getElementById('carCatalogSearch')?.value || '').trim().toLocaleLowerCase('fr')
+  };
+}
+function renderCarCatalogBrandPicker() {
+  const picker=document.getElementById('carCatalogBrandPicker');
+  if(!picker || picker.dataset.ready==='true')return;
+  const brands=[...new Set(CAR_CATALOG.map(model=>model.brand).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fr'));
+  const logos={
+    'Fan RC':'./assets/fan-rc-logo.svg',
+    'F.A.N. RC':'./assets/fan-rc-logo.svg',
+    'X-Factory':'./assets/x-factory-logo.svg',
+    'Kyosho':'https://cdn.brandfetch.io/idXDBNlT9W/w/568/h/133/theme/dark/logo.png?c=1bxid64Mup7aczewSAYMX&t=1792896373403',
+    'PR Racing':'https://i0.wp.com/circusrc.com/CRC/wp-content/uploads/2019/09/PR-Racing.jpg?fit=1024%2C512&ssl=1',
+    'Mugen Seiki':'https://www.autocollant-tuning.com/3061-product_main/sticker-et-autocollant-mugen-seiki.jpg',
+
+    'Team Losi':'https://images.seeklogo.com/logo-png/32/1/team-losi-racing-logo-png_seeklogo-324214.png',
+    'Traxxas':'https://www.kindpng.com/picc/m/72-728397_traxxas-logo-png-transparent-png.png',
+    'Team Associated':'https://apps.associatedelectrics.com/downloads/thumbs/TeamAssociated-color-lightBG-300.png',
+    'Schumacher':'https://schumacher-racing.com/wp-content/uploads/2024/01/Schumacher_racing_pink-gelb-1.png',
+
+    'Tamiya':'https://www.most-models.com/files/tamiya-modelbouw.png',
+    'Yokomo':'https://cdn.ecommercedns.uk/files/7/229017/4/49342684/yokomo-logo-retro.png',
+    'XRAY':'https://www.xraystore.cz/user/categories/orig/xray-1.png'
+  };
+  picker.innerHTML=brands.map(brand=>{
+    const initials=brand.split(/[\s-]+/).map(word=>word[0]).slice(0,2).join('').toUpperCase();
+    const logo=logos[brand];
+    return '<button type="button" class="material-brand-tile'+(logo?' has-brand-logo':'')+'" data-brand="'+escapeHtml(brand)+'" aria-pressed="false">'+(logo?'<img class="material-brand-logo" src="'+logo+'" alt="" loading="lazy" decoding="async">':'')+'<span class="brand-logo-mark">'+escapeHtml(initials)+'</span><span class="material-brand-name">'+escapeHtml(brand)+'</span></button>';
+  }).join('');
+  picker.querySelectorAll('.material-brand-logo').forEach(img=>{
+    img.addEventListener('load',()=>img.parentElement.classList.add('has-logo-loaded'));
+    img.addEventListener('error',()=>{img.parentElement.classList.remove('has-brand-logo');img.remove();});
+  });
+  picker.dataset.ready='true';
+}
+function addCatalogCarByIndex(index) {
+  const model = CAR_CATALOG[Number(index)];
+  if (!model) return;
+  state.cars.unshift({ id: uid('car'), name: model.name, brand: model.brand, scale: model.scale, drive: normalizeDriveType(model.drive), type: model.type, era: model.era, diffCount: inferDifferentialCount(model), photos: [], createdAt: new Date().toISOString() });
+  saveState(); renderAll();
+  const select = document.getElementById('carCatalogModel');
+  if (select) select.value = '';
+  showToast(model.name + ' ajouté au garage.');
+}
+function updateCarCatalogOptions() {
+  const { brand, drive, era, query } = getCatalogFilters();
+  const select = document.getElementById('carCatalogModel');
+  if (!select) return;
+  const filtered = CAR_CATALOG.map((model, index) => ({ model, index })).filter(({model}) =>
+    (!brand || model.brand === brand) && (!drive || normalizeDriveType(model.drive) === drive) && (!era || model.era === era) &&
+    (!query || (model.name + ' ' + model.brand + ' ' + model.type + ' ' + model.scale).toLocaleLowerCase('fr').includes(query))
+  );
+  select.innerHTML = '<option value="">Choisir un modèle…</option>' + filtered.map(({model,index}) =>
+    '<option value="' + index + '">' + escapeHtml(model.name + ' · ' + model.brand + ' · ' + model.scale + ' · ' + model.drive) + '</option>'
+  ).join('');
+  const picker=document.getElementById('carCatalogBrandPicker');
+  picker?.querySelectorAll('[data-brand]').forEach(button=>{
+    const active=brand===button.dataset.brand;
+    button.classList.toggle('selected',active);
+    button.setAttribute('aria-pressed',String(active));
+  });
+  document.getElementById('clearCarCatalogBrand')?.classList.toggle('active',!brand);
+  const count = document.getElementById('carCatalogCount');
+  if (count) count.textContent = filtered.length + ' modèles disponibles.';
+}
+function handleCarCatalogAdd() {
+  const selected = document.getElementById('carCatalogModel')?.value;
+  if (selected === '' || selected == null) { showToast('Sélectionne un modèle dans la liste ou dans les résultats affichés.'); return; }
+  addCatalogCarByIndex(selected);
+}
+function normalizeDriveType(value) {
+  const drive=String(value||'').toLocaleLowerCase('fr').trim();
+  if (/2wd|4x2|propulsion|traction avant/.test(drive)) return '2WD';
+  if (/4wd|4x4/.test(drive)) return '4WD';
+  return drive ? 'Autre' : '';
+}
+function inferDifferentialCount(car) {
+  const drive=normalizeDriveType(car?.drive);
+  if (drive==='2WD') return 1;
+  if (/1\s*\/\s*8/.test(String(car?.scale||''))) return 3;
+  if (drive==='4WD') return 2;
+  return 1;
+}
+function getCarDifferentialCount(car) {
+  const count=Number(car?.diffCount);
+  return Number.isInteger(count)&&count>=1&&count<=3?count:inferDifferentialCount(car);
+}
+function openCarEditor(id) {
+  const car=getCarById(id);if(!car)return;
+  const form=document.getElementById('carForm');editingCarId=id;
+  for(const name of ['name','brand','scale','drive','type','notes','engineEquipment','escEquipment','servoEquipment']){const field=form.elements.namedItem(name);if(field)field.value=name==='drive'?normalizeDriveType(car[name]):(car[name]||'');}const diffField=form.elements.namedItem('diffCount');if(diffField)diffField.value=car.diffCount?String(car.diffCount):'auto';
+  pendingCarPhotos=Array.isArray(car.photos)?car.photos.slice(0,3):[];
+  renderCarPhotoPreviews();
+  renderCarEditorHistory(car);
+  setCarHistoryTabVisibility(true);
+  setCarEditorTab('equipment');
+  updateCarBrandPicker();
+  form.querySelector('h2').textContent='Modifier la voiture';
+  form.querySelector('button[type="submit"]').textContent='Enregistrer les modifications';
+  form.classList.remove('hidden');form.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function resetCarEditor() {
+  editingCarId=null;pendingCarPhotos=[];
+  const form=document.getElementById('carForm');if(!form)return;
+  const heading=form.querySelector('h2');if(heading)heading.textContent='Ajouter une autre voiture';
+  const submit=form.querySelector('button[type="submit"]');if(submit)submit.textContent='Enregistrer';
+  renderCarPhotoPreviews();
+  renderCarEditorHistory(null);
+  setCarHistoryTabVisibility(false);
+  setCarEditorTab('equipment');
+  updateCarBrandPicker();
+}
+function renderCarEditorHistory(car) {
+  const date=document.getElementById('carEditorCreatedDate'),list=document.getElementById('carEditorHistoryList');
+  if(date)date.textContent=car&&car.createdAt?'Date de création : '+formatDate(car.createdAt):'Date de création : elle sera enregistrée à la création de la voiture';
+  if(!list)return;
+  const entries=Array.isArray(car&&car.partsHistory)?car.partsHistory.slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))):[];
+  list.innerHTML=entries.length?'<strong>Événements déjà enregistrés</strong><ol class="car-parts-history">'+entries.map(entry=>'<li><strong>'+escapeHtml(entry.action||'Événement')+'</strong><span>'+escapeHtml(entry.date||'Date inconnue')+'</span>'+(entry.notes||entry.part?'<p>'+escapeHtml(entry.notes||entry.part)+'</p>':'')+'</li>').join('')+'</ol>':'<p class="item-sub">Aucun événement supplémentaire pour le moment.</p>';
+}
+function setCarHistoryTabVisibility(visible) {
+  const button=document.querySelector('[data-car-tab="history"]');
+  const panel=document.querySelector('[data-car-tab-panel="history"]');
+  if(button)button.hidden=!visible;
+  if(panel)panel.hidden=!visible;
+}
+function setCarEditorTab(tab) {
+  document.querySelectorAll('[data-car-tab]').forEach(button=>{const active=button.dataset.carTab===tab;button.classList.toggle('active',active);button.setAttribute('aria-selected',String(active));});
+  document.querySelectorAll('[data-car-tab-panel]').forEach(panel=>panel.classList.toggle('hidden',panel.dataset.carTabPanel!==tab));
+}
+function handleCarSubmit(event) {
+  event.preventDefault();
+  const data = formValues(event.target, ['name', 'brand', 'scale', 'drive', 'type', 'diffCount', 'notes', 'engineEquipment', 'escEquipment', 'servoEquipment', 'historyAction', 'historyNotes', 'historyDate']);
+  if (!data.name) return;
+  data.drive=normalizeDriveType(data.drive);data.diffCount=data.diffCount==='auto'?inferDifferentialCount(data):Math.min(3,Math.max(1,Number(data.diffCount)||inferDifferentialCount(data)));
+  if(editingCarId){
+    const car=getCarById(editingCarId);if(!car){showToast('Voiture introuvable.');return;}
+    const previous={...car};
+    const now=new Date().toISOString(), history=[...(car.partsHistory||[])];
+    for(const [key,label] of [['engineEquipment','Moteur'],['escEquipment','Variateur / ESC'],['servoEquipment','Servo']]){
+      const before=String(car[key]||'').trim(),after=String(data[key]||'').trim();
+      if(before!==after&&(before||after))history.unshift({date:now.slice(0,10),part:label,action:before?'Remplacement / modification':'Ajout',notes:`${before||'Non renseigné'} → ${after||'Retiré'}`});
+    }
+    if(data.historyAction||data.historyNotes.trim())history.unshift({date:data.historyDate||now.slice(0,10),action:data.historyAction||'Note',notes:data.historyNotes.trim()});
+    delete data.historyAction;delete data.historyNotes;delete data.historyDate;
+    Object.assign(car,data,{partsHistory:history.slice(0,100),photos:[...pendingCarPhotos],updatedAt:now});
+    if(!saveState()){Object.assign(car,previous);return;}
+    showToast('Fiche voiture, équipements et historique mis à jour.');
+  }else{
+    const now=new Date().toISOString(),partsHistory=[{date:now.slice(0,10),action:'Création de la voiture',notes:''}];
+    if(data.historyAction||data.historyNotes.trim())partsHistory.unshift({date:data.historyDate||now.slice(0,10),action:data.historyAction||'Note',notes:data.historyNotes.trim()});
+    delete data.historyAction;delete data.historyNotes;delete data.historyDate;
+    state.cars.unshift({ id: uid('car'), ...data, partsHistory, photos:[...pendingCarPhotos], createdAt: now });
+    if(!saveState()){state.cars.shift();return;}
+    showToast('Voiture personnalisée ajoutée au garage.');
+  }
+  editingCarId=null;pendingCarPhotos=[];renderCarPhotoPreviews();renderAll();event.target.reset();event.target.classList.add('hidden');resetCarEditor();
+}
+function openTrackEditor(id) {
+  const track = getTrackById(id);
+  if (!track) return;
+  const form = document.getElementById('trackForm');
+  editingTrackId = id;
+  for (const name of ['name', 'surface', 'grip', 'type', 'location', 'details']) {
+    const field = form.elements.namedItem(name);
+    if (field) field.value = track[name] || '';
+  }
+  form.querySelector('button[type="submit"]').textContent = 'Enregistrer les modifications';
+  form.classList.remove('hidden');
+  form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+function handleTrackSubmit(event) {
+  event.preventDefault();
+  const data = formValues(event.target, ['name', 'surface', 'grip', 'type', 'location', 'details']);
+  if (!data.name) return;
+  if (editingTrackId) {
+    const index = state.tracks.findIndex(track => track.id === editingTrackId);
+    if (index < 0) { showToast('Piste introuvable.'); return; }
+    const previous = state.tracks[index];
+    state.tracks[index] = { ...previous, ...data, updatedAt: new Date().toISOString() };
+    if (!saveState()) { state.tracks[index] = previous; return; }
+    showToast('Piste mise à jour.');
+  } else {
+    state.tracks.unshift({ id: uid('track'), ...data, createdAt: new Date().toISOString() });
+    if (!saveState()) { state.tracks.shift(); return; }
+    showToast('Piste ajoutée à ton carnet.');
+  }
+  editingTrackId = null;
+  renderAll();
+  event.target.reset();
+  event.target.classList.add('hidden');
+  event.target.querySelector('button[type="submit"]').textContent = 'Enregistrer';
+}
+
+function readFileAsDataURL(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error('Lecture de la photo impossible'));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function compressPhoto(file) {
+  if (!file.type.startsWith('image/')) throw new Error('Choisis uniquement des fichiers image.');
+  if (file.size > MAX_PHOTO_BYTES) throw new Error('Chaque photo doit faire moins de 12 Mo.');
+
+  let bitmap;
+  try {
+    bitmap = await createImageBitmap(file);
+    const maxSide = 1280;
+    const ratio = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(bitmap.width * ratio));
+    canvas.height = Math.max(1, Math.round(bitmap.height * ratio));
+    const context = canvas.getContext('2d');
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close?.();
+    return canvas.toDataURL('image/jpeg', 0.72);
+  } catch (error) {
+    if (bitmap) bitmap.close?.();
+    return readFileAsDataURL(file);
+  }
+}
+
+function renderPhotoPreviews() {
+  const container = document.getElementById('setupPhotoPreview');
+  container.replaceChildren();
+  pendingPhotos.forEach((photo, index) => {
+    const tile = document.createElement('div');
+    tile.className = 'photo-preview-tile';
+    tile.innerHTML = `<img src="${photo}" alt="Aperçu de la photo ${index + 1}"><button type="button" class="photo-remove" aria-label="Retirer la photo ${index + 1}">×</button>`;
+    tile.querySelector('.photo-remove').addEventListener('click', () => {
+      pendingPhotos.splice(index, 1);
+      renderPhotoPreviews();
+    });
+    container.append(tile);
+  });
+}
+
+async function handlePhotoSelection(event) {
+  const files = Array.from(event.target.files || []);
+  event.target.value = '';
+  const available = MAX_SETUP_PHOTOS - pendingPhotos.length;
+  if (available <= 0) { showToast(`Maximum ${MAX_SETUP_PHOTOS} photos par setup.`); return; }
+  if (files.length > available) showToast(`Jusqu’à ${MAX_SETUP_PHOTOS} photos : seules les premières pourront être ajoutées.`);
+  for (const file of files.slice(0, available)) {
+    try {
+      pendingPhotos.push(await compressPhoto(file));
+      renderPhotoPreviews();
+    } catch (error) {
+      showToast(error.message || 'Impossible de charger cette photo.');
+    }
+  }
+}
+function renderCarPhotoPreviews() {
+  const container=document.getElementById('carPhotoPreview');if(!container)return;
+  container.replaceChildren();
+  pendingCarPhotos.forEach((photo,index)=>{
+    const tile=document.createElement('div');tile.className='photo-preview-tile';
+    tile.innerHTML=`<img src="${photo}" alt="Aperçu de la photo ${index+1} de la voiture"><button type="button" class="photo-remove" aria-label="Retirer la photo ${index+1}">×</button>`;
+    tile.querySelector('.photo-remove').addEventListener('click',()=>{pendingCarPhotos.splice(index,1);renderCarPhotoPreviews();});
+    container.append(tile);
+  });
+  const count=document.getElementById('carPhotoCount');if(count)count.textContent=`${pendingCarPhotos.length}/3 photos`;
+}
+async function handleCarPhotoSelection(event) {
+  const files=Array.from(event.target.files||[]);event.target.value='';
+  const available=3-pendingCarPhotos.length;
+  if(available<=0){showToast('Maximum 3 photos par voiture.');return;}
+  if(files.length>available)showToast('Maximum 3 photos par voiture : seules les premières seront ajoutées.');
+  for(const file of files.slice(0,available)){
+    try{pendingCarPhotos.push(await compressPhoto(file));renderCarPhotoPreviews();}
+    catch(error){showToast(error.message||'Impossible de charger cette photo.');}
+  }
+}
+
+function handleSetupSubmit(event){
+  event.preventDefault();const data=formValues(event.target,['carId','trackId',...SETUP_FIELDS]);for(const name of SETUP_FIELDS){if(!event.target.elements.namedItem(name))delete data[name];}data.setupName=String(event.target.elements.namedItem('setupName')?.value||'').trim();
+  if(!data.carId||(!data.trackId&&!(editingSetupId&&state.setups.find(s=>s.id===editingSetupId)?.sharedTrackName))){showToast('Choisis une voiture et une piste.');return;}if(!data.trackId)data.trackId=null;const now=new Date().toISOString();
+  if(editingSetupId){const index=state.setups.findIndex(s=>s.id===editingSetupId);if(index<0){showToast('Setup introuvable.');return;}const previous=state.setups[index];const history=[...(previous.history||[]),{savedAt:now,data:{...previous,photos:[...(previous.photos||[])],history:[]}}].slice(-20);state.setups[index]={...previous,...data,photos:[...pendingPhotos],history,updatedAt:now};if(!saveState()){state.setups[index]=previous;return;}showToast('Setup mis à jour. Ancienne version conservée dans l’historique.');}
+  else{const source=setupDraftSource;const created={...(source||{}),id:uid('setup'),...data,photos:[...pendingPhotos],favorite:false,history:[],createdAt:now,updatedAt:now};delete created.isShared;delete created.sharedBy;delete created.sharedAt;state.setups.unshift(created);if(!saveState()){state.setups.shift();return;}showToast(source?'Copie du setup enregistrée.':'Setup enregistré. Bon run !');}
+  editingSetupId=null;setupDraftSource=null;pendingPhotos=[];renderPhotoPreviews();renderAll();event.target.reset();event.target.classList.add('hidden');event.target.querySelector('button[type="submit"]').textContent='Enregistrer le setup';
+}
+
+function showCarSetups(id) {
+  setView('setups');
+  const filter=document.getElementById('setupCarFilter');
+  if(filter){filter.value=id;renderSetups();}
+}
+function removeCar(id) {
+  const car = getCarById(id);
+  if (!car || !confirm(`Supprimer « ${car.name} » et les setups associés ?`)) return;
+  const previousCars=state.cars,previousSetups=state.setups;
+  state.cars = state.cars.filter((entry) => entry.id !== id);
+  state.setups = state.setups.filter((setup) => setup.carId !== id);
+  if(!saveState()){state.cars=previousCars;state.setups=previousSetups;return;}
+  renderAll(); showToast('Voiture et setups associés supprimés.');
+}
+function removeTrack(id) {
+  const track = getTrackById(id);
+  if (!track || !confirm(`Supprimer « ${track.name} » et les setups associés ?`)) return;
+  const previousTracks=state.tracks,previousSetups=state.setups;
+  state.tracks = state.tracks.filter((entry) => entry.id !== id);
+  state.setups = state.setups.filter((setup) => setup.trackId !== id);
+  if(!saveState()){state.tracks=previousTracks;state.setups=previousSetups;return;}
+  renderAll(); showToast('Piste et setups associés supprimés.');
+}
+function removeSetup(id) {
+  if (!confirm('Supprimer ce setup ?')) return;
+  const previousSetups=state.setups;
+  state.setups = state.setups.filter((setup) => setup.id !== id);
+  if(!saveState()){state.setups=previousSetups;return;}
+  renderAll(); showToast('Setup supprimé.');
+}
+
+
+let assistantSetupId=null;
+let currentDetailSetupId=null;
+let assistantLastProposal=[];
+function assistantRecommendations(setup,symptom,phase,options={}){
+ setup=setup||{};
+ const car=getCarById(options.carId||setup.carId)||setup.sharedCar||null,track=getTrackById(options.trackId||setup.trackId);
+
+ const drivetrain=String(car?.drivetrain||car?.driveType||car?.transmission||car?.drive||'').toLowerCase();
+ const is4wd=/4wd|4x4|4 roues|quatre roues/.test(drivetrain);
+ const surface=setup.surface||track?.surface||'surface non précisée';
+ const grip=setup.grip||track?.grip||options.grip||'adhérence non précisée';
+ const bank={
+  understeer:{entry:[['Direction / train avant','Vérifie le débattement et l’absence de point dur. Essaie un peu plus de chasse ou une position de biellette qui augmente la réponse initiale, selon le châssis.'],['Pneus avant','Contrôle l’usure, le collage et l’insert. Un pneu avant plus accrocheur peut aider, sans changer plusieurs paramètres à la fois.']],mid:[['Équilibre de roulis','Essaie une barre antiroulis avant plus souple ou arrière plus ferme, si le châssis en est équipé.'],['Géométrie','Teste une légère augmentation du carrossage avant négatif et vérifie la largeur de voie.']],exit:[['Motricité / différentiel','Vérifie si le train avant pousse ou si le train arrière manque d’appui. Sur 4WD, contrôle aussi la cohérence des différentiels.'],['Pneus avant','Vérifie la température et l’état des pneus avant après quelques tours.']],all:[['Avant','Commence par l’état des pneus avant, la direction et les points durs.'],['Équilibre','Compare ensuite barre antiroulis, carrossage et répartition du grip.']]},
+  oversteer:{entry:[['Stabilité au freinage','Vérifie le freinage, le pincement arrière et l’état des pneus arrière. Évite de modifier le frein et la géométrie simultanément.'],['Arrière','Essaie davantage de stabilité arrière via le réglage de pincement prévu par le fabricant.']],mid:[['Train arrière','Teste une barre antiroulis arrière plus souple ou une barre avant plus ferme, si disponible.'],['Pneus arrière','Contrôle gomme, inserts, collage et température.']],exit:[['Motricité','Réduis la brutalité de la remise des gaz et vérifie le slipper sur 2WD ou les différentiels sur 4WD.'],['Suspension arrière','Contrôle la détente, la précontrainte et l’amortissement arrière.']],all:[['Arrière','Commence par pneus, pincement arrière et liberté de suspension.'],['Équilibre','Teste ensuite une barre arrière plus souple ou une réponse moteur plus progressive.']]},
+  traction:{entry:[['Pneus arrière','Vérifie gomme, inserts, diamètre et état. Sur une piste glissante, la gomme et la préparation comptent beaucoup.'],['Suspension','Contrôle que les amortisseurs travaillent librement et que les roues gardent le contact avec le sol.']],mid:[['Répartition du grip','Teste un arrière plus souple (ressort ou barre selon le symptôme) et contrôle le droop.'],['Pneus','Vérifie que les pneus ne sont ni glacés ni encrassés.']],exit:[['Transmission','Sur 2WD, vérifie le slipper et la progressivité du variateur. Sur 4WD, vérifie les différentiels et la motricité des deux trains.'],['Amortissement arrière','Un amortissement trop ferme peut empêcher le pneu de suivre le sol : teste un changement léger d’huile ou de piston.']],all:[['Pneus et contact au sol','Vérifie d’abord les pneus, inserts, amortisseurs et liberté des triangles.'],['Transmission','Contrôle le slipper en 2WD ou les différentiels en 4WD.']]},
+  tractionRoll:{entry:[['Avant','Réduis éventuellement l’agressivité du train avant : barre avant plus ferme ou pneu avant moins agressif, selon le châssis.'],['Pilotage','Vérifie que le phénomène n’est pas lié à une entrée trop brusque.']],mid:[['Équilibre latéral','Contrôle la largeur de voie, la hauteur de caisse et le transfert de masse.'],['Pneus','Une gomme trop accrocheuse ou un insert trop rigide peut provoquer un retournement sur fort grip.']],exit:[['Remise des gaz','Rends la remise des gaz plus progressive et contrôle la répartition de motricité.'],['Suspension','Vérifie la détente et les butées : évite un châssis qui se soulève brutalement.']],all:[['Grip excessif','Contrôle gomme, inserts, hauteur de caisse et largeur de voie.'],['Progressivité','Adoucis les commandes avant de modifier profondément la géométrie.']]},
+  bumpy:{entry:[['Avant','Vérifie que les amortisseurs ne talonnent pas et que les triangles pivotent librement.'],['Amortissement','Une huile légèrement plus fluide peut aider la roue à suivre les petites irrégularités, à confirmer par essai.']],mid:[['Suspension','Contrôle ressorts, pistons, huile et droop. Modifie un seul élément à la fois.'],['Hauteur de caisse','Vérifie que le châssis ne touche pas le sol sur les compressions.']],exit:[['Arrière','Contrôle la détente arrière et l’absence de talonnage à l’accélération.'],['Pneus','Vérifie la souplesse des inserts et la régularité des pneus.']],all:[['Liberté mécanique','Élimine d’abord les points durs, frottements et amortisseurs qui coincent.'],['Amortissement','Ajuste ensuite huile, piston et ressort par petits incréments.']]},
+  jump:{entry:[['Assiette','Vérifie la hauteur de caisse et le droop avant/arrière.'],['Répartition','Un changement de gaz en l’air peut corriger l’assiette, mais vérifie d’abord le comportement au décollage.']],mid:[['Équilibre','Contrôle l’assiette au décollage, la répartition des masses et la symétrie des amortisseurs.'],['Suspension','Vérifie que les amortisseurs ne talonnent pas à la réception.']],exit:[['Réception','Contrôle la progressivité des ressorts et l’amortissement pour éviter le rebond.'],['Châssis','Vérifie les fixations d’amortisseurs et l’absence de jeu.']],all:[['Décollage','Observe si le buggy quitte la rampe à plat ou avec le nez haut/bas.'],['Réception','Contrôle les amortisseurs, la garde au sol et les jeux mécaniques.']]},
+  lazy:{entry:[['Direction','Vérifie EPA, dual rate, Ackermann et points durs avant de modifier la géométrie.'],['Train avant','Essaie une réponse avant légèrement plus vive via la chasse ou le point de fixation adapté.']],mid:[['Rotation','Teste une barre arrière légèrement plus ferme ou un avant plus libre, selon les options du châssis.'],['Géométrie','Vérifie carrossage et largeur de voie.']],exit:[['Sortie','Vérifie que le différentiel ou le slipper ne freine pas la rotation et que la remise des gaz reste progressive.'],['Arrière','Contrôle l’accroche arrière : trop de grip peut empêcher la voiture de pivoter.']],all:[['Direction','Vérifie les réglages radio et la liberté mécanique.'],['Équilibre','Teste ensuite un ajustement léger de barre antiroulis et de géométrie.']]}
+ };
+ const phaseList=bank[symptom]?.[phase]||bank[symptom]?.all||[];
+ const severity=options.severity||document.getElementById('assistantSeverity')?.value||'medium';
+ const scale=severity==='light'?'Commence par une petite correction.':severity==='strong'?'Fais d’abord un contrôle mécanique : une correction importante peut masquer plusieurs causes.':'Procède par petits incréments et valide sur plusieurs tours.';
+ const effectiveDrive=drivetrain||options.drive||'';
+ const caution=/4wd|4x4|4 roues|quatre roues/.test(effectiveDrive)?'Transmission détectée comme 4WD : vérifie les différentiels réellement présents.':/2wd|2 roues|4x2/.test(effectiveDrive)?'Transmission détectée comme 2WD : concentre les essais sur le train arrière, le slipper et la progressivité moteur.':'Architecture de transmission à confirmer : les conseils de différentiel/slipper dépendent de la voiture.';
+ return {car:car?.name||'Voiture non sélectionnée',track:track?.name||'Piste non sélectionnée',surface,grip,drivetrain:effectiveDrive||'non renseignée',caution,scale,items:phaseList};
+}
+function renderAssistantRecommendations(){
+ const setup=state.setups.find(s=>s.id===assistantSetupId);if(!setup)return;
+ const data=assistantRecommendations(setup,document.getElementById('assistantSymptom').value,document.getElementById('assistantPhase').value);
+ assistantLastProposal=data.items;
+ document.getElementById('assistantContext').innerHTML='<strong>'+escapeHtml(data.car)+' · '+escapeHtml(data.track)+'</strong><span>'+escapeHtml(data.surface)+' · '+escapeHtml(data.grip)+'</span><p>'+escapeHtml(data.caution)+'</p><small>'+escapeHtml(data.scale)+'</small>';
+ const equipment=[['Pneus AV',setup.frontTires],['Pneus AR',setup.rearTires],['Inserts AV',setup.frontInserts],['Inserts AR',setup.rearInserts],['Ressorts AV / AR',[setup.frontSpring,setup.rearSpring].filter(Boolean).join(' / ')],['Huiles AV / AR',[setup.frontShocks,setup.rearShocks].filter(Boolean).join(' / ')],['Pistons AV / AR',[setup.frontPiston,setup.rearPiston].filter(Boolean).join(' / ')],['Moteur',setup.motor],['Variateur',setup.escModel||setup.esc],['Différentiels',[setup.frontDiffType,setup.centerDiffType,setup.rearDiffType].filter(v=>v&&v!=='Absent').join(' / ')],['Slipper',setup.slipper]].filter(([,value])=>value);
+ const similar=state.setups.filter(item=>item.id!==setup.id&&item.carId===setup.carId&&(item.surface||getTrackById(item.trackId)?.surface||'')===data.surface&&(item.grip||getTrackById(item.trackId)?.grip||'')===data.grip).sort((a,b)=>new Date(b.sessionDate||b.updatedAt||b.createdAt||0)-new Date(a.sessionDate||a.updatedAt||a.createdAt||0)).slice(0,4);
+ const feedback=state.setups.filter(item=>item.carId===setup.carId).flatMap(item=>(item.testProposals||[]).filter(p=>p.status&&p.status!=='À tester').map(p=>({status:p.status,symptom:p.symptom,setup:item.setupName||'Setup précédent'}))).slice(-6).reverse();
+ document.getElementById('assistantContext').innerHTML+='<div class="assistant-context-block"><b>Équipement réellement renseigné</b>'+(equipment.length?'<ul>'+equipment.map(([label,value])=>'<li>'+escapeHtml(label)+' : '+escapeHtml(value)+'</li>').join('')+'</ul>':'<p>Équipement incomplet : complète la fiche pour obtenir des conseils plus précis.</p>')+'</div>'+(similar.length?'<div class="assistant-context-block"><b>Historique comparable · '+similar.length+' setup(s)</b><ul>'+similar.map(item=>'<li>'+escapeHtml(item.setupName||'Setup')+' · '+escapeHtml(item.sessionDate||String(item.createdAt||'').slice(0,10))+' · '+escapeHtml(item.testConclusion||item.testedChanges||'Pas de bilan renseigné')+'</li>').join('')+'</ul></div>':'<p class="assistant-missing-data">Aucun ancien setup sur une surface et un grip comparables.</p>')+(feedback.length?'<div class="assistant-context-block"><b>Retours de tes essais précédents</b><ul>'+feedback.map(item=>'<li>'+escapeHtml(item.symptom)+' · '+escapeHtml(item.status)+' · '+escapeHtml(item.setup)+'</li>').join('')+'</ul></div>':'');
+ if(!setup.frontTires||!setup.rearTires||!setup.frontSpring||!setup.rearSpring||!setup.frontShocks||!setup.rearShocks)document.getElementById('assistantContext').insertAdjacentHTML('beforeend','<p class="assistant-missing-data">Attention : certains pneus, ressorts ou huiles ne sont pas renseignés. L’assistant évite donc de proposer une viscosité ou une référence précise.</p>');
+ const previousNegative=feedback.find(item=>item.status==='Négatif'&&item.symptom===document.getElementById('assistantSymptom').selectedOptions[0]?.text);
+ if(previousNegative)document.getElementById('assistantRecommendations').insertAdjacentHTML('afterbegin','<p class="assistant-warning">Un essai précédent sur ce symptôme a été marqué négatif. Ne répète pas la même approche sans identifier ce qui a changé depuis.</p>');
+ document.getElementById('assistantRecommendations').innerHTML=data.items.map((item,index)=>'<article class="assistant-recommendation"><span class="assistant-number">'+(index+1)+'</span><div><h3>'+escapeHtml(item[0])+'</h3><p>'+escapeHtml(item[1])+'</p></div></article>').join('')+'<p class="assistant-footnote">Méthode : conserve le setup de référence, change un seul paramètre à la fois et note les chronos ainsi que le ressenti. Ces pistes sont générales et doivent être vérifiées avec le manuel du châssis.</p>';
+}
+function openSetupAssistant(id){
+ assistantSetupId=id;const dialog=document.getElementById('setupAssistantDialog');if(!dialog)return;
+ renderAssistantRecommendations();dialog.showModal();
+}
+function saveAssistantProposal(){
+ const setup=state.setups.find(s=>s.id===assistantSetupId);if(!setup||!assistantLastProposal.length)return;
+ const symptom=document.getElementById('assistantSymptom'),phase=document.getElementById('assistantPhase');
+ const proposal={createdAt:new Date().toISOString(),symptom:symptom.options[symptom.selectedIndex].text,phase:phase.options[phase.selectedIndex].text,items:assistantLastProposal.map(x=>({area:x[0],advice:x[1]})),status:'À tester'};
+ setup.testProposals=[...(setup.testProposals||[]),proposal].slice(-30);
+ if(!saveState())return;
+ document.getElementById('setupAssistantDialog').close();showSetup(setup.id);showToast('Pistes de réglage enregistrées dans le setup.');
+}
+
+const SETUP_HISTORY_LABELS={frontTires:'Pneus avant',rearTires:'Pneus arrière',frontInserts:'Inserts avant',rearInserts:'Inserts arrière',frontShocks:'Huile avant',rearShocks:'Huile arrière',frontSpring:'Ressort avant',rearSpring:'Ressort arrière',frontPiston:'Piston avant',rearPiston:'Piston arrière',frontCamber:'Carrossage avant',rearCamber:'Carrossage arrière',frontToe:'Pincement avant',rearToe:'Pincement arrière',frontRideHeight:'Hauteur avant',rearRideHeight:'Hauteur arrière',frontDroop:'Droop avant',rearDroop:'Droop arrière',frontDiffOil:'Huile diff. avant',centerDiffOil:'Huile diff. central',rearDiffOil:'Huile diff. arrière',slipper:'Slipper',motor:'Moteur',escModel:'Variateur',escPunch:'Punch ESC',radioThrottleExpo:'Expo gaz',lapTime:'Meilleur chrono',averageLapTime:'Moyenne au tour',grip:'Adhérence',surface:'Surface'};
+function getSetupVersionDiffs(before,after){return SETUP_FIELDS.filter(key=>String(before?.[key]??'')!==String(after?.[key]??'')).map(key=>({label:SETUP_HISTORY_LABELS[key]||key.replace(/([A-Z])/g,' $1'),from:String(before?.[key]??'—')||'—',to:String(after?.[key]??'—')||'—'}));}
+function renderSetupHistory(setup){
+ const history=Array.isArray(setup.history)?setup.history:[];
+ if(!history.length)return '<p class="item-sub">Aucune modification enregistrée pour le moment. Les prochaines modifications seront historisées automatiquement.</p>';
+ return '<ol class="setup-history-timeline">'+history.map((entry,index)=>{const next=history[index+1]?.data||setup;const diffs=getSetupVersionDiffs(entry.data,next);return '<li class="setup-history-event"><div class="setup-history-heading"><strong>Version précédente</strong><time>'+escapeHtml(new Date(entry.savedAt).toLocaleString('fr-FR'))+'</time></div>'+(diffs.length?'<ul class="setup-history-diffs">'+diffs.slice(0,10).map(diff=>'<li><b>'+escapeHtml(diff.label)+'</b><span>'+escapeHtml(diff.from)+' → '+escapeHtml(diff.to)+'</span></li>').join('')+'</ul>':'<p class="item-sub">Aucun changement de paramètre détecté.</p>')+(diffs.length>10?'<small class="item-sub">+'+(diffs.length-10)+' autres modifications</small>':'')+'<button class="button button-quiet restore-version" data-index="'+index+'" type="button">Restaurer cette version</button></li>';}).reverse().join('')+'</ol>';
+}
+function renderSavedSetupProposals(setup){
+ const proposals=Array.isArray(setup.testProposals)?setup.testProposals:[];if(!proposals.length)return '';
+ return '<section class="detail-group"><h3>Essais proposés par l’assistant</h3><p class="item-sub">Après roulage, indique le résultat pour conserver un retour exploitable par les prochains diagnostics.</p>'+proposals.slice().reverse().map((p,index)=>{const originalIndex=proposals.length-1-index;return '<article class="saved-proposal"><strong>'+escapeHtml(p.symptom)+' · '+escapeHtml(p.phase)+'</strong><small>'+escapeHtml(new Date(p.createdAt).toLocaleString('fr-FR'))+' · Résultat : '+escapeHtml(p.status||'À tester')+'</small><ul>'+(p.items||[]).map(item=>'<li><b>'+escapeHtml(item.area)+'</b> — '+escapeHtml(item.advice)+'</li>').join('')+'</ul><div class="proposal-feedback"><button class="button button-soft proposal-status" data-index="'+originalIndex+'" data-status="Positif" type="button">✓ Positif</button><button class="button button-soft proposal-status" data-index="'+originalIndex+'" data-status="Négatif" type="button">À éviter</button><button class="button button-quiet proposal-status" data-index="'+originalIndex+'" data-status="Sans effet" type="button">Sans effet</button></div></article>';}).join('')+'</section>';
+}
+function setSetupProposalStatus(setupId,index,status){const setup=state.setups.find(item=>item.id===setupId),proposal=setup?.testProposals?.[index];if(!proposal)return;const previous=proposal.status;proposal.status=status;proposal.resultRecordedAt=new Date().toISOString();if(!saveState()){proposal.status=previous;return;}const dialog=document.getElementById('setupDialog');if(dialog?.open)dialog.close();showSetup(setupId);showToast('Résultat d’essai enregistré : '+status+'.');}
+function showSetup(id) {
+  currentDetailSetupId=id;
+  const setup = state.setups.find((entry) => entry.id === id);
+  if (!setup) return;
+  const car = getCarById(setup.carId)||setup.sharedCar||null;
+  const track = getTrackById(setup.trackId);
+  const trackName = track?.name || setup.sharedTrackName || 'Piste inconnue';
+  const groups = [
+    ['Session', [['Date', setup.sessionDate || formatDate(setup.createdAt)], ['Température', setup.temperature], ['Surface',setup.surface||track?.surface], ['Adhérence',setup.grip||track?.grip], ['Météo', setup.weather], ['Objectif / ressenti', setup.goal], ['Notes de session', setup.sessionNotes]]],
+    ['Carnet de test', [['Nombre de tours', setup.runLaps], ['Meilleur tour', setup.lapTime], ['Moyenne au tour', setup.averageLapTime], ['Régularité', setup.lapConsistency], ['Entrée de virage', setup.cornerEntry], ['Milieu de virage', setup.cornerMid], ['Sortie de virage', setup.cornerExit], ['Motricité', setup.tractionLevel], ['Stabilité', setup.stabilityLevel], ['Modifications testées', setup.testedChanges], ['Bilan du test', setup.testConclusion], ['Prochain essai', setup.nextTest]]],
+    ['Pneus & roues', [['Pneus avant', setup.frontTires], ['Pneus arrière', setup.rearTires], ['Inserts avant', setup.frontInserts], ['Inserts arrière', setup.rearInserts], ['Inserts (ancienne fiche)', setup.inserts], ['Traitement pneus', setup.tireTreatment], ['État des pneus', setup.tireCondition], ['Notes pneus & inserts', setup.tiresNotes]]],
+    ['Suspension & géométrie', [['Huile amortisseur avant', setup.frontShocks], ['Piston amortisseur avant', setup.frontPiston], ['Ressort avant', setup.frontSpring], ['Coupelle sous amortisseur avant', setup.frontShockCupPosition], ['Tour d’amortisseur avant',setup.frontShockTower], ['Position amortisseur avant',setup.frontShockPosition], ['Huile amortisseur arrière', setup.rearShocks], ['Piston amortisseur arrière', setup.rearPiston], ['Ressort arrière', setup.rearSpring], ['Coupelle sous amortisseur arrière', setup.rearShockCupPosition], ['Tour d’amortisseur arrière',setup.rearShockTower], ['Position amortisseur arrière',setup.rearShockPosition], ['Anciens ressorts (setup existant)', setup.springs], ['Hauteur de caisse avant', setup.frontRideHeight], ['Hauteur de caisse arrière', setup.rearRideHeight], ['Hauteur de caisse (ancienne fiche)', setup.rideHeight], ['Carrossage avant', setup.frontCamber], ['Carrossage arrière', setup.rearCamber], ['Pincement / ouverture avant', setup.frontToe], ['Pincement / ouverture arrière', setup.rearToe], ['Chasse avant', setup.frontCaster], ['Géométrie de direction (Ackermann)', setup.ackermann], ['Barre antiroulis avant', setup.frontAntiRollBar], ['Barre antiroulis arrière', setup.rearAntiRollBar], ['Débattement avant / droop', setup.frontDroop], ['Débattement arrière / droop', setup.rearDroop], ['Carrossage (ancienne fiche)', setup.camber], ['Pincement / ouverture (ancienne fiche)', setup.toe], ['Largeur de voie avant', setup.frontTrackWidth], ['Largeur de voie arrière', setup.rearTrackWidth], ['Longueur biellette avant', setup.frontLinkLength], ['Longueur biellette arrière', setup.rearLinkLength], ['Chasse / Ackermann (ancienne fiche)', setup.casterAckermann], ['Barres antiroulis (ancienne fiche)', setup.antiRollBars], ['Débattement / droop (ancienne fiche)', setup.droop], ['Lest avant', setup.frontBallastWeight], ['Lest arrière', setup.rearBallastWeight], ['Lest latéral', setup.lateralBallastWeight], ['Notes suspension & géométrie', setup.suspensionNotes]]],
+    ['Transmission', [['Pignon moteur (dents)', setup.pinionTeeth || (setup.gearing ? setup.gearing.match(/pignon\s*(\d+)/i)?.[1] : '')], ['Couronne (dents)', setup.spurTeeth || (setup.gearing ? setup.gearing.match(/couronne\s*(\d+)/i)?.[1] : '')], ['Différentiel avant – configuration', setup.frontDiffType], ['Différentiel avant – huile', setup.frontDiffOil], ['Différentiel avant – graisse', setup.frontDiffGrease], ['Différentiel avant à billes – serrage', setup.frontBallDiffTightness], ['Différentiel central – configuration', setup.centerDiffType], ['Différentiel central – huile', setup.centerDiffOil], ['Différentiel central – graisse', setup.centerDiffGrease], ['Différentiel central à billes – serrage', setup.centerBallDiffTightness], ['Différentiel arrière – configuration', setup.rearDiffType], ['Différentiel arrière – huile', setup.rearDiffOil], ['Différentiel arrière – graisse', setup.rearDiffGrease], ['Différentiel arrière à billes – serrage', setup.rearBallDiffTightness], ['Slipper', setup.slipperPresence], ['Réglage du slipper – serrage de l’écrou', setup.slipper], ['Ancien type de différentiel', setup.diffType], ['Ancien différentiel à billes – serrage', setup.ballDiff], ['Moteur', setup.motor], ['Notes transmission', setup.transmissionNotes]]],
+    ['Réglages variateur (ESC)', [['Variateur / modèle', setup.escModel], ['Mode de fonctionnement', setup.escMode], ['Timing moteur', setup.escMotorTiming], ['Boost / timing dynamique', setup.escBoost], ['Turbo timing', setup.escTurbo], ['Délai turbo', setup.escTurboDelay], ['Punch / puissance initiale', setup.escPunch], ['Force de freinage max', setup.escBrake], ['Drag brake', setup.escDragBrake], ['Fréquence freinage', setup.escBrakeFrequency], ['Fréquence accélération PWM', setup.escThrottleFrequency], ['Neutral range', setup.escNeutralRange], ['Cutoff batterie', setup.escCutoff], ['Tension BEC', setup.escBec], ['Protection thermique', setup.escThermal], ['Limitation marche arrière', setup.escReverse], ['Rampe de freinage', setup.escBrakeRate], ['Rampe accélération', setup.escThrottleRate], ['Autres paramètres ESC', setup.electronicsNotes], ['Notes variateur', setup.escSectionNotes]]],
+    ['Réglages radio', [['Radio / émetteur', setup.txModel], ['Dual rate direction', setup.radioSteeringDualRate], ['Expo direction', setup.radioSteeringExpo], ['EPA direction', setup.radioEPA], ['Trim direction', setup.radioSteeringTrim], ['Subtrim direction', setup.radioSubtrim], ['Reverse direction', setup.radioSteeringReverse], ['Expo accélérateur', setup.radioThrottleExpo], ['EPA accélérateur', setup.radioThrottleEPA], ['Trim accélérateur / neutre', setup.radioThrottleTrim], ['Reverse accélérateur', setup.radioThrottleReverse], ['EPA frein', setup.radioBrakeEPA], ['Expo frein', setup.radioBrakeExpo], ['Failsafe', setup.radioFailsafe], ['Autres réglages radio', setup.radio], ['Notes réglages radio', setup.radioSectionNotes]]],
+    ['Équipements radio', [['Récepteur / gyro', setup.rxModel], ['Servo de direction', setup.servoSteering], ['Notes équipements radio', setup.radioEquipmentNotes]]],
+    ['Repères sur les photos', [['Annotations / positions repérées',setup.photoNotes]]],
+    ['Bilan de session', [['Meilleur temps au tour', setup.lapTime], ['Ressenti général', setup.rating], ['Notes & prochaines modifications', setup.notes]]]
+  ];
+  const content = document.getElementById('setupDetails');
+  const photoSection = setup.photos?.length ? `<section class="detail-group"><h3>Photos du setup</h3><div class="setup-gallery">${setup.photos.map((photo, index) => `<a href="${photo}" target="_blank" rel="noopener"><img src="${photo}" alt="Photo ${index + 1} du setup" loading="lazy"></a>`).join('')}</div></section>` : '';
+  content.innerHTML = `<div class="pdf-action-banner"><div><strong>Ta fiche prête à imprimer ou enregistrer</strong><span>PDF A4 avec amortisseurs avant puis arrière, et tous les réglages classés.</span></div><button class="button button-primary pdf-main-button" id="detailPrintSetupTop" type="button">⇩ Imprimer / PDF</button></div><span class="kicker">FICHE DE RÉGLAGES</span><h2>${escapeHtml(setup.setupName ? setup.setupName+' · ' : '')}${escapeHtml(getSetupCarName(setup) || 'Voiture inconnue')} <span class="arrow">→</span> ${escapeHtml(trackName)}</h2><p class="dialog-subtitle">${escapeHtml(setup.surface||track?.surface||'')} ${(setup.grip||track?.grip)?'· '+escapeHtml(setup.grip||track?.grip):''} ${setup.weather ? '· '+escapeHtml(setup.weather) : ''} ${setup.temperature ? `· ${escapeHtml(setup.temperature)}` : ''}</p>` + photoSection + groups.map(([title, fields]) => {
+    const filled = fields.filter(([, value]) => value);
+    if (!filled.length) return '';
+    return `<section class="detail-group"><h3>${escapeHtml(title)}</h3><dl>${filled.map(([label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`).join('')}</dl></section>`;
+  }).join('');
+  if(setup.isShared||setup.sharedBy)content.insertAdjacentHTML('afterbegin','<div class="shared-setup-banner"><strong>↗ SETUP PARTAGÉ</strong><span>Propriétaire : '+escapeHtml(setup.sharedBy||'Pilote inconnu')+'</span></div>');
+  const history=Array.isArray(setup.history)?setup.history:[];
+  const proposals=Array.isArray(setup.testProposals)?setup.testProposals:[];
+  content.insertAdjacentHTML('beforeend',`${renderSavedSetupProposals(setup)}<section class="detail-group"><h3>Historique des modifications</h3>${renderSetupHistory(setup)}</section><div class="item-actions detail-actions"><button class="button button-primary" id="detailAssistantSetup" type="button">✦ Assistant de réglages</button><button class="button button-primary" id="detailEditSetup" type="button">Modifier ce setup</button><button class="button button-soft" id="detailExportSetup" type="button">Partager par lien</button><button class="button button-soft" id="detailPrintSetup" type="button">Imprimer / PDF</button><button class="button button-soft" id="detailDuplicateSetup" type="button">Dupliquer</button><button class="button button-soft" id="detailFavoriteSetup" type="button">${setup.favorite?'★ Retirer des favoris':'☆ Ajouter aux favoris'}</button></div>`);
+  content.querySelectorAll('.restore-version').forEach(button=>button.addEventListener('click',()=>restoreSetupVersion(id,Number(button.dataset.index))));
+  content.querySelectorAll('.proposal-status').forEach(button=>button.addEventListener('click',()=>setSetupProposalStatus(id,Number(button.dataset.index),button.dataset.status)));
+  content.querySelector('#detailAssistantSetup').addEventListener('click',()=>openSetupAssistant(id));
+  content.querySelector('#detailEditSetup').addEventListener('click',()=>{document.getElementById('setupDialog').close();openSetupEditor(id);});
+  content.querySelector('#detailExportSetup').addEventListener('click',()=>shareSetupByLink(id));
+  content.querySelector('#detailPrintSetup').addEventListener('click',printSetupDetails);
+  content.querySelector('#detailPrintSetupTop').addEventListener('click',printSetupDetails);
+  content.querySelector('#detailDuplicateSetup').addEventListener('click',()=>{document.getElementById('setupDialog').close();openSetupEditor(id,true);});
+  content.querySelector('#detailFavoriteSetup').addEventListener('click',()=>{document.getElementById('setupDialog').close();toggleSetupFavorite(id);});
+  document.getElementById('setupDialog').showModal();
+}
+
+
+function downloadJsonFile(data,filename){
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),link=document.createElement('a');
+  link.href=url;link.download=filename;document.body.append(link);link.click();link.remove();URL.revokeObjectURL(url);
+}
+function buildSingleSetupPayload(setup,sharedBy,sharedAt){
+  const sharedSetup={...setup,isShared:true,sharedBy,sharedAt,photos:[]};
+  const sourceCar=getCarById(setup.carId)||setup.sharedCar||null;
+  const car=sourceCar?{...sourceCar,name:sourceCar.name||getSetupCarName(setup)||'Voiture non renseignée',photos:[]}:{name:getSetupCarName(setup)||'Voiture non renseignée',photos:[]};
+  const sourceTrack=getTrackById(setup.trackId)||setup.sharedTrack||null;
+  const track=sourceTrack?{...sourceTrack,name:sourceTrack.name||setup.sharedTrackName||setup.trackName||'Piste non renseignée'}:{name:setup.sharedTrackName||setup.trackName||'Piste non renseignée',surface:setup.sharedTrackSurface||setup.surface||'',grip:setup.sharedTrackGrip||setup.grip||'',location:setup.sharedTrackLocation||'',details:setup.sharedTrackDetails||''};
+  return {format:'rc-setup-single',version:3,exportedAt:sharedAt,sharedBy,car,track,setup:sharedSetup};
+}
+function base64UrlEncodeUtf8(value){
+  const bytes=new TextEncoder().encode(value);let binary='';
+  for(let i=0;i<bytes.length;i+=0x8000)binary+=String.fromCharCode(...bytes.subarray(i,i+0x8000));
+  return btoa(binary).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+function base64UrlDecodeBytes(value){
+  const normalized=String(value||'').replace(/^[a-z]:/,'').replace(/-/g,'+').replace(/_/g,'/'),binary=atob(normalized+'='.repeat((4-normalized.length%4)%4));
+  return Uint8Array.from(binary,char=>char.charCodeAt(0));
+}
+function base64UrlEncodeBytes(bytes,prefix=''){
+  let binary='';for(let i=0;i<bytes.length;i+=0x8000)binary+=String.fromCharCode(...bytes.subarray(i,i+0x8000));
+  return prefix+btoa(binary).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+function base64UrlDecodeUtf8(value){
+  const bytes=base64UrlDecodeBytes(value);
+  return new TextDecoder().decode(bytes);
+}
+async function decodeSharedPayload(value){
+  const raw=String(value||'').trim();
+  let bytes=base64UrlDecodeBytes(raw);
+  const isGzip=data=>data?.[0]===0x1f&&data?.[1]===0x8b;
+  // Compatibilité avec les liens déjà créés : l'ancien partage ajoutait "g"
+  // devant le Base64 gzip, tandis que certains liens utilisent "g:".
+  if(!isGzip(bytes)&&raw.startsWith('g')){
+    try{const legacyBytes=base64UrlDecodeBytes(raw.slice(1));if(isGzip(legacyBytes))bytes=legacyBytes;}catch{}
+  }
+  if(isGzip(bytes)){
+    if(typeof DecompressionStream==='undefined')throw new Error('Décompression non prise en charge par ce navigateur');
+    const stream=new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+    return JSON.parse(await new Response(stream).text());
+  }
+  return JSON.parse(new TextDecoder().decode(bytes));
+}
+function getSetupCarName(setup){
+   return getCarById(setup?.carId)?.name||setup?.sharedCar?.name||setup?.sharedCarName||'';
+}
+function importSharedPayload(payload){
+   if(payload?.format!=='rc-setup-single'||!payload.setup||!payload.car?.name||!payload.track?.name)throw new Error('Format de setup partagé invalide');
+   const sharedBy=String(payload.sharedBy||payload.setup.sharedBy||'').trim()||String(window.prompt('Qui est le pilote propriétaire de ce setup ?')||'').trim();
+   if(!sharedBy){showToast('Import annulé : le nom du pilote est nécessaire.');return false;}
+   const now=new Date().toISOString(),sharedTrack=payload.track||{},sharedCar={...payload.car,photos:[]};
+   const setup={...payload.setup,id:uid('setup'),carId:'',sharedCar,sharedCarName:sharedCar.name,trackId:null,sharedTrackName:sharedTrack.name||payload.setup.sharedTrackName||'Piste non renseignée',sharedTrackSurface:sharedTrack.surface||payload.setup.surface||'',sharedTrackGrip:sharedTrack.grip||payload.setup.grip||'',sharedTrackLocation:sharedTrack.location||'',sharedTrackDetails:sharedTrack.details||'',isShared:true,sharedBy,sharedAt:payload.setup.sharedAt||payload.exportedAt||now,photos:Array.isArray(payload.setup.photos)?payload.setup.photos:[],history:[],favorite:false,createdAt:now,updatedAt:now};
+   if(!confirm('Importer le setup de '+sharedBy+' ? La voiture et la piste seront indiquées uniquement dans cette fiche : rien ne sera ajouté à ton garage ni à ta bibliothèque de pistes. Tes données existantes ne seront pas remplacées.'))return false;
+   state.setups.unshift(setup);
+   if(!saveState()){state.setups.shift();return false;}
+   renderAll();showToast('Setup de '+sharedBy+' importé. Aucun véhicule ni aucune piste ajoutés à tes bibliothèques.');return true;
+}
+async function shareSetupByLink(id){
+  const setup=state.setups.find(s=>s.id===id);if(!setup)return;
+  const sharedBy=String(window.prompt('Quel est le nom du pilote propriétaire de ce setup ?',setup.sharedBy||'')||'').trim();
+  if(!sharedBy){showToast('Partage annulé : indique le nom du pilote.');return;}
+  try{
+    const sharedAt=new Date().toISOString(),payload=buildSingleSetupPayload(setup,sharedBy,sharedAt),json=JSON.stringify(payload);
+    let encoded;
+    if(typeof CompressionStream!=='undefined'){
+      const compressed=await new Response(new Blob([json]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer();
+      encoded=base64UrlEncodeBytes(new Uint8Array(compressed),'g:');
+    }else encoded=base64UrlEncodeUtf8(json);
+    const url=location.origin+location.pathname+'?share='+encoded;
+    if(url.length>7500){showToast('Même compressé, ce setup dépasse la taille maximale d’un lien. Il faut réduire les informations de la fiche pour le partager.');return;}
+    const shareData={title:'Setup RC partagé · '+(setup.setupName||getCarById(setup.carId)?.name||'RC SETUP'),text:'Voici un setup partagé par '+sharedBy+'. Ouvre le lien pour l’enregistrer dans RC SETUP.',url};
+    if(navigator.share)navigator.share(shareData).then(()=>showToast('Lien de partage envoyé.')).catch(error=>{if(error?.name==='AbortError')return;if(navigator.clipboard?.writeText)navigator.clipboard.writeText(url).then(()=>showToast('Lien copié. Tu peux maintenant le partager.')).catch(()=>window.prompt('Copie ce lien de partage :',url));else window.prompt('Copie ce lien de partage :',url);});
+    else if(navigator.clipboard?.writeText)navigator.clipboard.writeText(url).then(()=>showToast('Lien copié. Tu peux maintenant le partager.')).catch(()=>window.prompt('Copie ce lien de partage :',url));
+    else window.prompt('Copie ce lien de partage :',url);
+  }catch(error){console.error(error);showToast('Impossible de compresser ce setup pour le partage.');}
+}
+function isInstalledAppMode(){
+  return window.matchMedia?.('(display-mode: standalone)').matches||window.navigator.standalone===true;
+}
+function showShareOpenInstructions(){
+  if(document.getElementById('shareOpenHelp'))return;
+  const overlay=document.createElement('div');overlay.id='shareOpenHelp';overlay.className='share-open-overlay';
+  overlay.innerHTML='<section class="share-open-card" role="dialog" aria-modal="true" aria-labelledby="shareOpenTitle"><div class="share-open-logo">RC SETUP</div><span class="kicker">SETUP REÇU</span><h2 id="shareOpenTitle">Ouvre ce lien dans ton application</h2><p>Safari ne transmet pas automatiquement les liens à une application web installée sur l’écran d’accueil de l’iPhone.</p><ol><li>Copie le lien avec le bouton ci-dessous.</li><li>Ferme Safari et lance <strong>RC SETUP</strong> depuis son icône sur l’écran d’accueil.</li><li>Dans <strong>Setups</strong>, utilise « Importer un setup par lien » puis « Coller et importer ».</li></ol><button id="copyIncomingShareLink" class="button button-primary" type="button">Copier le lien d’import</button><button id="closeShareOpenHelp" class="button button-soft" type="button">Fermer</button></section>';
+  document.body.append(overlay);
+  overlay.querySelector('#copyIncomingShareLink').addEventListener('click',async()=>{
+    try{await navigator.clipboard.writeText(location.href);showToast('Lien copié. Ouvre maintenant RC SETUP depuis son icône.');}
+    catch{window.prompt('Copie ce lien puis ouvre RC SETUP depuis son icône :',location.href);}
+  });
+  overlay.querySelector('#closeShareOpenHelp').addEventListener('click',()=>overlay.remove());
+}
+async function importSharedLinkValue(value){
+  const raw=String(value||'').trim();if(!raw)throw new Error('Lien manquant');
+  let encoded=raw;
+  try{const parsed=new URL(raw,location.origin);encoded=parsed.searchParams.get('share')||parsed.hash.match(/(?:^#|&)share=([^&]+)/)?.[1]||raw;}catch{}
+  const payload=await decodeSharedPayload(encoded);
+  return importSharedPayload(payload);
+}
+async function pasteSharedSetupLinkToField(){
+  const field=document.getElementById('sharedSetupLinkInput');if(!field)return;
+  try{const value=await navigator.clipboard.readText();if(value){field.value=value;showToast('Lien collé. Appuie sur « Coller et importer ».');return;}}
+  catch{}
+  field.focus();showToast('Appuie dans le champ puis sélectionne Coller.');
+}
+async function pasteAndImportSharedLink(){
+  const field=document.getElementById('sharedSetupLinkInput');let value=field?.value||'';
+  if(!value&&navigator.clipboard?.readText){try{value=await navigator.clipboard.readText();}catch{}}
+  if(!value)value=window.prompt('Colle ici le lien de setup reçu :')||'';
+  if(field)field.value=value;
+  try{const imported=await importSharedLinkValue(value);if(imported&&field)field.value='';}
+  catch(error){console.error(error);showToast('Lien invalide. Copie le lien complet reçu et réessaie.');}
+}
+async function processIncomingShareLink(){
+  const queryValue=new URLSearchParams(location.search).get('share');
+  const hashMatch=location.hash.match(/(?:^#|&)share=([^&]+)/);
+  const encoded=queryValue||hashMatch?.[1];if(!encoded)return;
+  if(!isInstalledAppMode()){showShareOpenInstructions();return;}
+  try{
+    const payload=await decodeSharedPayload(encoded);
+    history.replaceState(null,'',location.pathname);
+    window.setTimeout(()=>{try{importSharedPayload(payload);}catch(error){console.error(error);showToast('Lien de partage invalide ou incompatible.');}},500);
+  }catch(error){console.error(error);history.replaceState(null,'',location.pathname);showToast('Lien de partage invalide ou incomplet.');}
+}
+function exportSingleSetup(id){
+  // L'export individuel est un partage direct par lien ; le JSON reste réservé à la sauvegarde complète.
+  shareSetupByLink(id);
+}
+function importSingleSetup(file){
+  if(!file)return;const reader=new FileReader();
+  reader.onload=event=>{try{importSharedPayload(JSON.parse(String(event.target?.result||'')));}catch(error){console.error(error);showToast('Fichier de setup invalide ou incompatible.');}};
+  reader.readAsText(file);
+}
+
+function exportJson() {
+  const backup = { ...state, materials: window.RCSetupMaterials?.exportData?.() || [], exportedAt: new Date().toISOString(), version: 4 };
+  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url; link.download = `rc-setup-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.append(link); link.click(); link.remove(); URL.revokeObjectURL(url);
+  showToast('Sauvegarde JSON exportée (avec les photos).');
+}
+function importJson(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (event) => {
+    try {
+      const parsed = JSON.parse(String(event.target?.result || ''));
+      if (!parsed || !Array.isArray(parsed.cars) || !Array.isArray(parsed.tracks) || !Array.isArray(parsed.setups)) throw new Error('Format invalide');
+      if (!confirm('L’import remplacera les voitures, pistes, setups et, si présents, les articles personnels de la bibliothèque. Continuer ?')) return;
+      const previous={cars:state.cars,tracks:state.tracks,setups:state.setups,maintenance:state.maintenance,batteries:state.batteries};
+      state.cars=parsed.cars;state.tracks=parsed.tracks;state.maintenance=Array.isArray(parsed.maintenance)?parsed.maintenance:[];if(Array.isArray(parsed.batteries))state.batteries=parsed.batteries;state.setups=parsed.setups.map(setup=>({...setup,photos:Array.isArray(setup.photos)?setup.photos:[],history:Array.isArray(setup.history)?setup.history:[]}));
+      if(!saveState()){Object.assign(state,previous);return;}
+      if(Array.isArray(parsed.materials)&&window.RCSetupMaterials&&!window.RCSetupMaterials.importData(parsed.materials)){Object.assign(state,previous);saveState();showToast('Import matériel impossible : les données précédentes ont été conservées.');return;}
+      renderAll();populateMaintenanceCars();renderBatteries();showToast(Array.isArray(parsed.materials)?'Sauvegarde complète importée.':'Sauvegarde importée. La bibliothèque personnelle actuelle a été conservée.');
+    } catch (error) {
+      console.error(error); showToast('Fichier JSON invalide ou incompatible.');
+    }
+  };
+  reader.readAsText(file);
+}
+async function refreshAppWorker() {
+  // Le Service Worker est seul responsable du cycle de vie de ses caches.
+  // Ne jamais supprimer ici les caches actifs : ils peuvent contenir la version
+  // hors-ligne actuellement utilisée pendant le téléchargement de la suivante.
+  const registration = await navigator.serviceWorker.register('./sw.js?v=4', { updateViaCache: 'none' });
+  await registration.update();
+  return registration;
+}
+function registerServiceWorker() {
+  if (!('serviceWorker' in navigator)) return;
+
+  // Ne recharger que si une page déjà contrôlée reçoit un nouveau worker.
+  // La première prise de contrôle (installation initiale) ne provoque aucun flash.
+  const hadController = Boolean(navigator.serviceWorker.controller);
+  let reloadingForUpdate = false;
+  if (hadController) {
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (reloadingForUpdate) return;
+      reloadingForUpdate = true;
+      window.location.reload();
+    });
+  }
+
+  // À chaque ouverture, vérifier le serveur. Un nouveau worker actif déclenche
+  // controllerchange et recharge alors automatiquement la version actualisée.
+  window.addEventListener('load', async () => {
+    try {
+      await refreshAppWorker();
+    } catch (error) {
+      console.error('Échec de la vérification automatique de RC SETUP :', error);
+    }
+  }, { once: true });
+}
+async function checkForAppUpdate() {
+  const button = document.getElementById('checkAppUpdate');
+  const status = document.getElementById('appUpdateStatus');
+  if (!button || !status) return;
+  if (!('serviceWorker' in navigator)) {
+    status.textContent = 'Mise à jour automatique indisponible dans ce navigateur. Ouvre le lien web de RC SETUP.';
+    return;
+  }
+  button.disabled = true;
+  button.textContent = 'Nettoyage et mise à jour…';
+  status.textContent = 'Recherche de la dernière version et suppression des anciens fichiers en cache. Tes voitures et réglages sont conservés.';
+  try {
+    await refreshAppWorker();
+    status.textContent = 'Vérification terminée. Rechargement de la dernière version…';
+    window.location.reload();
+  } catch (error) {
+    console.error('Mise à jour impossible :', error);
+    status.textContent = 'La mise à jour automatique a échoué. Vérifie ta connexion puis réessaie.';
+    button.disabled = false;
+    button.textContent = '↻ Réessayer la mise à jour';
+  }
+}
+function setupInstallPrompt() {
+  window.addEventListener('beforeinstallprompt', (event) => { event.preventDefault(); deferredPrompt = event; installButton.classList.remove('hidden'); });
+  installButton.addEventListener('click', async () => {
+    if (!deferredPrompt) { showToast('Sur iPhone : Safari → Partager → Sur l’écran d’accueil.'); return; }
+    deferredPrompt.prompt(); await deferredPrompt.userChoice; deferredPrompt = null; installButton.classList.add('hidden');
+  });
+}
+
+document.getElementById('checkAppUpdate')?.addEventListener('click', checkForAppUpdate);
+document.querySelectorAll('.nav-item').forEach((button) => button.addEventListener('click', () => setView(button.dataset.view)));
 document.querySelectorAll('[data-view]:not(.nav-item)').forEach((button) => button.addEventListener('click', () => navigateToTarget(button.dataset.view, button.dataset.navTarget || '', button.dataset.openForm || '')));
 document.querySelectorAll('.add-entry').forEach((button) => button.addEventListener('click', () => document.getElementById(button.dataset.form).classList.toggle('hidden')));
 document.querySelectorAll('[data-shortcut-view]').forEach(button => button.addEventListener('click', () => navigateToTarget(button.dataset.shortcutView, button.dataset.shortcutTarget || '', button.dataset.shortcutOpen || '')));
