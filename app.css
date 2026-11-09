@@ -302,15 +302,14 @@ select { color-scheme: dark; } textarea { min-height: 90px; resize: vertical; li
 .tool-result ol{margin:9px 0;padding-left:21px}.tool-result li{margin:6px 0}
 @media(max-width:700px){.tool-form-grid{grid-template-columns:1fr}}
 
-/* Mode piste : commandes plus lisibles et tactiles sur smartphone */
+/* Actions des fiches setup : compactes, avec un favori bien identifiable */
 .heading-actions{display:flex;gap:9px;align-items:center}
-.trackside-mode .topbar{padding-top:8px;padding-bottom:8px}
-.trackside-mode #setupForm input,.trackside-mode #setupForm select,.trackside-mode #setupForm textarea{min-height:54px;font-size:15px}
-.trackside-mode #setupForm label{font-size:13px}
-.trackside-mode .nav{position:sticky;top:0;z-index:20}
-@media(max-width:700px){.heading-actions{width:100%;display:grid;grid-template-columns:1fr 1fr}.heading-actions .button{min-height:46px}.trackside-mode #setupForm>.form-grid{padding:16px}.trackside-mode .nav-item{min-height:48px}}
-
-
+@media(max-width:700px){.heading-actions{width:100%;justify-content:flex-end;flex-wrap:wrap}}
+.setup-card .item-actions{gap:6px}
+.setup-card .item-actions .button{min-height:30px;padding:0 10px;border-radius:9px;font-size:9px;line-height:1}
+.setup-card .item-actions .favorite-setup{width:38px;min-width:38px;height:38px;min-height:38px;padding:0;margin-left:2px;border:1px solid rgba(255,190,72,.38);border-radius:11px;background:rgba(255,190,72,.12);color:#ffd166;font-size:21px;font-weight:800;line-height:1}
+.setup-card .item-actions .favorite-setup:focus-visible{outline:2px solid #ffd166;outline-offset:2px}
+.setup-card .item-actions .favorite-setup:active{background:rgba(255,190,72,.24)}
 /* Accueil de présentation et guide d'utilisation */
 .welcome-features{margin:22px 0 24px;padding:24px;border:1px solid rgba(165,180,203,.15);border-radius:22px;background:linear-gradient(145deg,rgba(25,38,56,.75),rgba(12,19,31,.72))}
 .welcome-heading{max-width:690px;margin-bottom:19px}.welcome-heading h2{margin:7px 0 8px;font-size:clamp(21px,3vw,29px);letter-spacing:-.04em}.welcome-heading p{color:var(--muted);font-size:12px;line-height:1.7}
