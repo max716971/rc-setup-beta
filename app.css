@@ -1160,3 +1160,97 @@ button, a, [role="button"] { touch-action: manipulation; }
     font-size: 24px;
   }
 }
+
+
+/* BETA V13 — un seul panneau pour l'en-tête Setups et l'import reçu */
+#setupsView > .setups-header-panel {
+  display: block;
+  padding: 22px 24px;
+  min-height: 0;
+}
+#setupsView .setups-heading-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+#setupsView .setups-heading-top .heading-actions { flex: 0 0 auto; }
+#setupsView .setups-import-area {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) minmax(220px,1.05fr) auto;
+  align-items: end;
+  gap: 14px;
+  margin-top: 20px;
+  padding-top: 17px;
+  border-top: 1px solid var(--line, rgba(255,255,255,.12));
+}
+#setupsView .setups-import-copy { min-width: 0; }
+#setupsView .setups-import-copy h2 {
+  margin: 4px 0 5px;
+  font-size: 16px;
+}
+#setupsView .setups-import-copy p {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.5;
+  opacity: .78;
+}
+#setupsView .setups-import-area > label { min-width: 0; }
+#setupsView .setups-import-area textarea { min-height: 58px; }
+#setupsView .setups-import-area .actions-row {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin: 0;
+}
+#setupsView .setups-import-area .actions-row .button {
+  white-space: nowrap;
+  min-height: 34px;
+  padding-inline: 11px;
+  font-size: 10px;
+}
+@media(max-width:850px) {
+  #setupsView .setups-import-area {
+    grid-template-columns: minmax(0,1fr) minmax(0,1fr);
+  }
+  #setupsView .setups-import-copy { grid-column: 1 / -1; }
+  #setupsView .setups-import-area .actions-row {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+}
+@media(max-width:700px) {
+  #setupsView > .setups-header-panel { padding: 17px 15px; }
+  #setupsView .setups-heading-top {
+    align-items: flex-start;
+    flex-direction: row;
+    gap: 10px;
+  }
+  #setupsView .setups-heading-top h1 { font-size: 29px; }
+  #setupsView .setups-heading-top p { font-size: 10px; }
+  #setupsView .setups-heading-top .heading-actions { width: auto; }
+  #setupsView .setups-heading-top .heading-actions .button {
+    width: auto;
+    min-height: 36px;
+    padding-inline: 12px;
+    white-space: nowrap;
+  }
+  #setupsView .setups-import-area {
+    grid-template-columns: minmax(0,1fr);
+    gap: 10px;
+    margin-top: 15px;
+    padding-top: 13px;
+  }
+  #setupsView .setups-import-copy { grid-column: auto; }
+  #setupsView .setups-import-area .actions-row {
+    grid-column: auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  #setupsView .setups-import-area .actions-row .button {
+    white-space: normal;
+    padding-inline: 7px;
+    font-size: 9px;
+  }
+}
