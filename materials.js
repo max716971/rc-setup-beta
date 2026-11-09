@@ -1406,21 +1406,54 @@
   let selectedBrand = '';
   const MATERIAL_PAGE_SIZE = 60;
   let visibleMaterialCount = MATERIAL_PAGE_SIZE;
-  function loadSaved() { try { const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); return Array.isArray(data) ? data : []; } catch { return []; } }
-  // Move automatically seeded catalogue entries out of the personal inventory.
+  let materialsLoadBlocked = false;
+  function loadSaved() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw === null || raw === '') return [];
+      const data = JSON.parse(raw);
+      if (!Array.isArray(data) || data.some(item => !item || typeof item !== 'object' || Array.isArray(item))) {
+        throw new Error('Structure de la bibliothèque personnelle invalide');
+      }
+      return data;
+    } catch (error) {
+      materialsLoadBlocked = true;
+      console.error('Bibliothèque personnelle illisible : original conservé, écriture bloquée.', error);
+      return [];
+    }
+  }
+  // Les anciennes entrées de catalogue sont sauvegardées avant toute migration.
   const legacyPrefixes = ['seed-hobbywing-esc-v1-', 'seed-hobbywing-motors-v3-', 'seed-hobbywing-motor-v2-', 'seed-rsrc-xrt-oils-v3-', 'seed-associated-spring-v1-'];
   let savedItems = loadSaved();
   const legacyCatalogItems = savedItems.filter(item => legacyPrefixes.some(prefix => String(item.id || '').startsWith(prefix)));
   for (const item of legacyCatalogItems) {
     if (!catalog.some(existing => existing.brand === item.brand && existing.name === item.name && existing.reference === item.reference)) catalog.push({ ...item, id: undefined });
   }
-  if (legacyCatalogItems.length) {
-    savedItems = savedItems.filter(item => !legacyPrefixes.some(prefix => String(item.id || '').startsWith(prefix)));
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(savedItems)); } catch {}
+  if (legacyCatalogItems.length && !materialsLoadBlocked) {
+    try {
+      const backupKey = 'rc-setup-beta-materials-pre-migration-v1';
+      const original = localStorage.getItem(STORAGE_KEY);
+      if (original !== null && localStorage.getItem(backupKey) === null) {
+        localStorage.setItem(backupKey, original);
+      }
+      const migrated = savedItems.filter(item => !legacyPrefixes.some(prefix => String(item.id || '').startsWith(prefix)));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
+      savedItems = migrated;
+    } catch (error) {
+      // La migration est facultative : en cas d'échec, garder les données d'origine.
+      console.warn('Migration du catalogue ignorée ; données personnelles conservées.', error);
+    }
   }
-  function persist() { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(savedItems)); window.dispatchEvent(new Event('rc-setup-data-changed')); return true; } catch { alert('Stockage local plein : retire une fiche ou libère de l’espace.'); return false; } }
+  function persist() {
+    if (materialsLoadBlocked) {
+      alert('Bibliothèque protégée : les données locales sont illisibles et ne seront pas écrasées. Restaure une sauvegarde depuis Aide.');
+      return false;
+    }
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(savedItems)); window.dispatchEvent(new Event('rc-setup-data-changed')); return true; }
+    catch { alert('Stockage local plein : retire une fiche ou libère de l’espace.'); return false; }
+  }
   function esc(value) { return String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[c]); }
-  function allMaterials() { return [...catalog, ...savedItems]; }
+  function allMaterials() { return [...catalog, ...savedItems.filter(item => !legacyPrefixes.some(prefix => String(item.id || '').startsWith(prefix)))]; }
   function materialLabel(item) { return `${item.brand} ${item.name}${item.reference ? ` — réf. ${item.reference}` : ''}`; }
 
   // Index texte et index par catégorie : calculés une seule fois, invalidés uniquement
