@@ -976,3 +976,10 @@ button, a, [role="button"] { touch-action: manipulation; }
   #dashboardView .home-hero-actions .button{flex-basis:100%}
   #dashboardView .cockpit-visual{height:175px;min-height:175px}
 }
+
+
+/* BETA DASHBOARD V4 — live paddock indicators */
+#dashboardView .cockpit-readouts>div:last-child strong[data-status="ok"]{color:#61d69a}
+#dashboardView .cockpit-readouts>div:last-child strong[data-status="error"]{color:#ff7777}
+#dashboardView .cockpit-topline b[data-status="error"]{color:#ff7777}
+#dashboardView .cockpit-topline i[data-status="error"]{background:#ff7777;box-shadow:0 0 12px #ff7777}
