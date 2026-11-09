@@ -5771,6 +5771,7 @@ const SETUP_FIELDS = [
   'escModel', 'escMode', 'escMotorTiming', 'escBoost', 'escTurbo', 'escTurboDelay', 'escTiming', 'escPunch', 'escBrake', 'escDragBrake', 'escBrakeFrequency', 'escThrottleFrequency', 'escNeutralRange', 'escCutoff', 'escBec', 'escThermal', 'escReverse', 'escBrakeRate', 'escThrottleRate', 'electronicsNotes', 'esc', 'radio', 'radioSteeringDualRate', 'radioSteeringExpo', 'radioEPA', 'radioSteeringTrim', 'radioSubtrim', 'radioSteeringReverse', 'radioThrottleExpo', 'radioThrottleEPA', 'radioThrottleTrim', 'radioThrottleReverse', 'radioBrakeEPA', 'radioBrakeExpo', 'radioFailsafe', 'radioTrim', 'txModel', 'rxModel', 'lapTime', 'rating', 'notes', 'runLaps', 'averageLapTime', 'lapConsistency', 'cornerEntry', 'cornerMid', 'cornerExit', 'tractionLevel', 'stabilityLevel', 'testedChanges', 'testConclusion', 'nextTest'
 ];
 
+let cockpitSaveStatus = 'OK · LOCAL';
 const state = loadState();
 const installButton = document.getElementById('installButton');
 let deferredPrompt = null;
@@ -5795,6 +5796,7 @@ function loadState() {
       batteries: Array.isArray(saved.batteries) ? saved.batteries : []
     };
   } catch (error) {
+    cockpitSaveStatus = 'INDISPONIBLE';
     console.error('Impossible de lire les données locales', error);
     return { cars: [], tracks: [], setups: [], maintenance: [], batteries: [] };
   }
@@ -5803,9 +5805,13 @@ function loadState() {
 function saveState() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    cockpitSaveStatus = 'OK · LOCAL';
+    updateCockpitIndicators();
     window.dispatchEvent(new Event('rc-setup-data-changed'));
     return true;
   } catch (error) {
+    cockpitSaveStatus = 'ÉCHEC';
+    updateCockpitIndicators();
     console.error('Impossible de sauvegarder les données locales', error);
     showToast('Stockage plein. Retire des photos ou exporte tes données.');
     return false;
@@ -5832,6 +5838,27 @@ function setView(viewName, shouldScroll = true) {
   if (shouldScroll) window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 function emptyState() { return emptyStateTemplate.content.cloneNode(true); }
+
+function updateCockpitIndicators() {
+  const system = document.getElementById('cockpitSystemStatus');
+  const dot = document.getElementById('cockpitSystemDot');
+  const save = document.getElementById('cockpitSaveStatus');
+  const last = document.getElementById('cockpitLastSetup');
+  if (system) { system.textContent = 'SYSTEM READY'; system.dataset.status = 'ready'; }
+  if (dot) dot.dataset.status = 'ready';
+  if (save) {
+    save.textContent = cockpitSaveStatus;
+    save.dataset.status = cockpitSaveStatus === 'OK · LOCAL' ? 'ok' : 'error';
+  }
+  if (last) {
+    const latest = [...state.setups].sort((a,b) => new Date(b.updatedAt || b.createdAt || b.sessionDate || 0) - new Date(a.updatedAt || a.createdAt || a.sessionDate || 0))[0];
+    const stamp = latest?.updatedAt || latest?.createdAt || latest?.sessionDate;
+    const date = stamp ? new Date(stamp) : null;
+    last.textContent = date && !Number.isNaN(date.getTime())
+      ? new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' }).format(date)
+      : 'AUCUN';
+  }
+}
 
 function renderDashboard() {
   document.getElementById('carCount').textContent = state.cars.length;
